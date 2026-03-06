@@ -13,6 +13,7 @@ function App() {
     const [showModal, setShowModal] = useState(false);
     const [selectedYear, setSelectedYear] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [tempYearId, setTempYearId] = useState('');
     const [user, setUser] = useState(() => {
         const savedUser = localStorage.getItem('user');
         return savedUser ? JSON.parse(savedUser) : null;
@@ -132,6 +133,7 @@ function App() {
                     received_date: new Date().toISOString().split('T')[0],
                     detected_date: new Date().toISOString().split('T')[0]
                 });
+                setTempYearId('');
                 fetchData(selectedYear, selectedCategory);
             } else {
                 const errorData = await response.json();
@@ -329,7 +331,7 @@ function App() {
                                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Thông tin chi tiết sự cố</p>
                                     </div>
                                 </div>
-                                <button type="button" onClick={() => setShowModal(false)} className="p-3 hover:bg-white hover:shadow-md rounded-full transition-all text-slate-400 hover:text-slate-900">
+                                <button type="button" onClick={() => { setShowModal(false); setTempYearId(''); }} className="p-3 hover:bg-white hover:shadow-md rounded-full transition-all text-slate-400 hover:text-slate-900">
                                     <X size={24} strokeWidth={2.5} />
                                 </button>
                             </div>
@@ -369,35 +371,50 @@ function App() {
                                 {/* Danh mục lưu trữ & Mã định danh */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Danh mục lưu trữ (Năm) *</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Năm lưu trữ *</label>
                                         <select
                                             required
-                                            name="material_category_id"
                                             className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
-                                            value={formData.material_category_id}
-                                            onChange={handleInputChange}
+                                            value={tempYearId}
+                                            onChange={(e) => {
+                                                setTempYearId(e.target.value);
+                                                setFormData({ ...formData, material_category_id: '' });
+                                            }}
                                         >
-                                            <option value="">-- Chọn danh mục --</option>
+                                            <option value="">-- Chọn năm --</option>
                                             {years.map(y => (
-                                                <optgroup key={y.id} label={`Năm ${y.year}`}>
-                                                    {y.MaterialCategories?.map(cat => (
-                                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                                    ))}
-                                                </optgroup>
+                                                <option key={y.id} value={y.id}>Năm {y.year}</option>
                                             ))}
                                         </select>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Mã định danh</label>
-                                        <input
-                                            name="issue_code"
-                                            type="text"
-                                            className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
-                                            placeholder="QC-XXXXXX"
-                                            value={formData.issue_code}
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Danh mục sản phẩm *</label>
+                                        <select
+                                            required
+                                            disabled={!tempYearId}
+                                            name="material_category_id"
+                                            className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                            value={formData.material_category_id}
                                             onChange={handleInputChange}
-                                        />
+                                        >
+                                            <option value="">-- Chọn danh mục --</option>
+                                            {tempYearId && years.find(y => String(y.id) === String(tempYearId))?.MaterialCategories?.map(cat => (
+                                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                            ))}
+                                        </select>
                                     </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Mã định danh</label>
+                                    <input
+                                        name="issue_code"
+                                        type="text"
+                                        className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
+                                        placeholder="QC-XXXXXX"
+                                        value={formData.issue_code}
+                                        onChange={handleInputChange}
+                                    />
                                 </div>
 
                                 {/* Tên sản phẩm */}
