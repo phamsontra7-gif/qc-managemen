@@ -1,0 +1,102 @@
+const { Sequelize, DataTypes } = require('sequelize');
+require('dotenv').config();
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME || 'qc_db',
+  process.env.DB_USER || 'postgres',
+  process.env.DB_PASS || 'password',
+  {
+    host: process.env.DB_HOST || 'localhost',
+    dialect: 'postgres',
+    logging: false,
+  }
+);
+
+// Define Models
+const Year = sequelize.define('Year', {
+  year: {
+    type: DataTypes.INTEGER,
+    unique: true,
+    allowNull: false
+  }
+}, { tableName: 'years', timestamps: false });
+
+const MaterialCategory = sequelize.define('MaterialCategory', {
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false
+  }
+}, { tableName: 'material_categories', timestamps: false });
+
+const Issue = sequelize.define('Issue', {
+  issue_code: { type: DataTypes.STRING, unique: true },
+  product_type: {
+    type: DataTypes.ENUM('Nguyên vật liệu', 'repacking', 'thành phẩm', 'khác'),
+    allowNull: true
+  },
+  product_name: DataTypes.STRING,
+  lot_no: DataTypes.STRING,
+  defect_description: DataTypes.TEXT,
+  quantity: DataTypes.DECIMAL,
+  unit: {
+    type: DataTypes.STRING,
+    defaultValue: 'kg'
+    // Should support: kg, bao, pallet
+  },
+  received_date: DataTypes.DATEONLY,
+  detected_date: DataTypes.DATEONLY,
+  resolution_direction: DataTypes.TEXT,
+  status: {
+    type: DataTypes.ENUM('NEW', 'PENDING', 'DONE'),
+    defaultValue: 'NEW'
+  },
+  last_updated: {
+    type: DataTypes.DATE,
+    defaultValue: Sequelize.NOW
+  }
+}, { tableName: 'issues', timestamps: false });
+
+const Notification = sequelize.define('Notification', {
+  message: DataTypes.TEXT,
+  is_read: { type: DataTypes.BOOLEAN, defaultValue: false },
+  created_at: { type: DataTypes.DATE, defaultValue: Sequelize.NOW }
+}, { tableName: 'notifications', timestamps: false });
+
+const User = sequelize.define('User', {
+  username: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: false
+  },
+  password: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  full_name: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  role: {
+    type: DataTypes.ENUM('ADMIN', 'USER'),
+    defaultValue: 'USER'
+  }
+}, { tableName: 'users', timestamps: true });
+
+// Relationships
+Year.hasMany(MaterialCategory, { foreignKey: 'year_id' });
+MaterialCategory.belongsTo(Year, { foreignKey: 'year_id' });
+
+MaterialCategory.hasMany(Issue, { foreignKey: 'material_category_id' });
+Issue.belongsTo(MaterialCategory, { foreignKey: 'material_category_id' });
+
+Issue.hasMany(Notification, { foreignKey: 'issue_id' });
+Notification.belongsTo(Issue, { foreignKey: 'issue_id' });
+
+module.exports = {
+  sequelize,
+  Year,
+  MaterialCategory,
+  Issue,
+  Notification,
+  User
+};
