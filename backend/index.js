@@ -108,7 +108,6 @@ app.delete('/api/users/:id', authenticate, isAdmin, async (req, res) => {
 app.get('/api/years', authenticate, async (req, res) => {
     try {
         const years = await Year.findAll({
-            include: [{ model: MaterialCategory }],
             order: [['year', 'ASC']]
         });
         res.json(years);
