@@ -165,10 +165,15 @@ app.post('/api/seed', async (req, res) => {
     try {
         await sequelize.sync({ force: true });
 
-        const year2025 = await Year.create({ year: 2025 });
+        // Create Years 2023-2030
+        const yearsData = [2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
+        const createdYears = {};
+        for (const y of yearsData) {
+            createdYears[y] = await Year.create({ year: y });
+        }
 
-        const cat1 = await MaterialCategory.create({ name: 'Thành phẩm', year_id: year2025.id });
-        const cat2 = await MaterialCategory.create({ name: 'Nguyên liệu', year_id: year2025.id });
+        const cat1 = await MaterialCategory.create({ name: 'Thành phẩm', year_id: createdYears[2025].id });
+        const cat2 = await MaterialCategory.create({ name: 'Nguyên liệu', year_id: createdYears[2025].id });
 
         // Create Admin User
         const adminPassword = await bcrypt.hash('admin123', 10);
@@ -182,27 +187,34 @@ app.post('/api/seed', async (req, res) => {
         const sampleIssues = [
             {
                 product_name: "Wonder cat",
+                product_type: "Thành phẩm/Products",
                 defect_description: "Phát hiện bọ trong bao",
                 quantity: 3270,
+                unit: 'kg',
                 received_date: "2025-07-19",
+                detected_date: "2025-07-19",
                 resolution_direction: "Sàng 100% loại bỏ côn trùng => Repacking",
                 status: "DONE",
+                year_id: createdYears[2025].id,
                 material_category_id: cat1.id
             },
             {
                 product_name: "Wheat flour (Bột mì)",
+                product_type: "Nguyên Vật Liệu/Raw Material",
                 defect_description: "Phát hiện nấm mốc và côn trùng sống",
-                quantity: null,
+                quantity: 25,
+                unit: 'bao',
                 received_date: "2025-10-20",
                 detected_date: "2025-12-05",
                 resolution_direction: "Cách ly và xử lý khẩn cấp",
                 status: "PENDING",
+                year_id: createdYears[2025].id,
                 material_category_id: cat2.id
             }
         ];
 
         await Issue.bulkCreate(sampleIssues);
-        res.json({ message: 'Database seeded successfully!' });
+        res.json({ message: 'Database seeded with years 2023-2030 successfully!' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -220,23 +232,28 @@ app.listen(PORT, '0.0.0.0', async () => {
         sequelize.sync({ alter: true }).then(async () => {
             console.log('✅ Database models synced.');
 
-            const adminUser = await User.findOne({ where: { username: 'admin' } });
-            if (!adminUser) {
-                console.log('No Admin found, creating default admin account...');
-                const adminPassword = await bcrypt.hash('admin123', 10);
-                await User.create({
-                    username: 'admin',
-                    password: adminPassword,
-                    full_name: 'Hệ thống Quản trị',
-                    role: 'ADMIN'
-                });
-            }
+            try {
+                const adminUser = await User.findOne({ where: { username: 'admin' } });
+                if (!adminUser) {
+                    console.log('No Admin found, creating default admin account...');
+                    const adminPassword = await bcrypt.hash('admin123', 10);
+                    await User.create({
+                        username: 'admin',
+                        password: adminPassword,
+                        full_name: 'Hệ thống Quản trị',
+                        role: 'ADMIN'
+                    });
+                }
 
-            // Seed years if not present
-            const targetYears = [2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
-            for (const yearVal of targetYears) {
-                const [yearObj, created] = await Year.findOrCreate({ where: { year: yearVal } });
-                if (created) console.log(`Created year: ${yearVal}`);
+                // Seed years if not present
+                const targetYears = [2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
+                for (const yearVal of targetYears) {
+                    const [yearObj, created] = await Year.findOrCreate({ where: { year: yearVal } });
+                    if (created) console.log(`Created year: ${yearVal}`);
+                }
+                console.log('✅ Background seeding completed.');
+            } catch (seedError) {
+                console.error('❌ Background seeding failed:', seedError.message);
             }
         });
     } catch (err) {
