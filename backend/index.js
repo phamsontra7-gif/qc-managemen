@@ -211,27 +211,31 @@ app.post('/api/seed', async (req, res) => {
     }
 });
 
-sequelize.sync({ alter: true }) // Auto-sync database tables
-    .then(async () => {
-        console.log('Connected to PostgreSQL database and models synced.');
+app.listen(PORT, '0.0.0.0', async () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
 
-        // Ensure Admin user exists
-        const adminUser = await User.findOne({ where: { username: 'admin' } });
-        if (!adminUser) {
-            console.log('No Admin found, creating default admin account...');
-            const adminPassword = await bcrypt.hash('admin123', 10);
-            await User.create({
-                username: 'admin',
-                password: adminPassword,
-                full_name: 'Hệ thống Quản trị',
-                role: 'ADMIN'
-            });
-        }
+    try {
+        console.log('⏳ Connecting to database...');
+        await sequelize.authenticate();
+        console.log('✅ Database connected.');
 
-        app.listen(PORT, '0.0.0.0', () => {
-            console.log(`Server is running on port ${PORT} (Network accessible)`);
+        // Sync in background and seed if needed
+        sequelize.sync({ alter: true }).then(async () => {
+            console.log('✅ Database models synced.');
+
+            const adminUser = await User.findOne({ where: { username: 'admin' } });
+            if (!adminUser) {
+                console.log('No Admin found, creating default admin account...');
+                const adminPassword = await bcrypt.hash('admin123', 10);
+                await User.create({
+                    username: 'admin',
+                    password: adminPassword,
+                    full_name: 'Hệ thống Quản trị',
+                    role: 'ADMIN'
+                });
+            }
         });
-    })
-    .catch(err => {
-        console.error('Unable to connect to the database:', err);
-    });
+    } catch (err) {
+        console.error('❌ Database connection error:', err);
+    }
+});
