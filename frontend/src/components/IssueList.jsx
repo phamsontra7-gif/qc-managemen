@@ -31,10 +31,10 @@ const IssueList = ({ issues }) => {
                                 className={`hover:bg-blue-50/50 transition-all duration-200 ${issue.status === 'NEW' ? 'bg-rose-50/30' : ''}`}
                             >
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${issue.product_type === 'Nguyên vật liệu' ? 'bg-blue-100 text-blue-700' :
-                                            issue.product_type === 'repacking' ? 'bg-amber-100 text-amber-700' :
-                                                issue.product_type === 'thành phẩm' ? 'bg-emerald-100 text-emerald-700' :
-                                                    'bg-slate-100 text-slate-600'
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${issue.product_type?.includes('Nguyên Vật Liệu') ? 'bg-blue-100 text-blue-700' :
+                                        issue.product_type === 'Repacking' ? 'bg-amber-100 text-amber-700' :
+                                            issue.product_type?.includes('Thành phẩm') ? 'bg-emerald-100 text-emerald-700' :
+                                                'bg-slate-100 text-slate-600'
                                         }`}>
                                         {issue.product_type || 'Khác'}
                                     </span>
@@ -44,7 +44,7 @@ const IssueList = ({ issues }) => {
                                     <div className="text-xs text-slate-400 font-medium capitalize">
                                         {issue.issue_code ? `${issue.issue_code}` : `#${issue.id + 1000}`}
                                         {issue.lot_no ? ` • Lot: ${issue.lot_no}` : ''}
-                                        {issue.MaterialCategory && ` • ${issue.MaterialCategory.name}`}
+                                        {issue.Year && ` • Năm ${issue.Year.year}`}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">

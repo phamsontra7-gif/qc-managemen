@@ -13,7 +13,6 @@ function App() {
     const [showModal, setShowModal] = useState(false);
     const [selectedYear, setSelectedYear] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
-    const [tempYearId, setTempYearId] = useState('');
     const [user, setUser] = useState(() => {
         const savedUser = localStorage.getItem('user');
         return savedUser ? JSON.parse(savedUser) : null;
@@ -28,6 +27,7 @@ function App() {
         status: 'NEW',
         issue_code: '',
         lot_no: '',
+        year_id: '',
         material_category_id: '',
         resolution_direction: '',
         received_date: new Date().toISOString().split('T')[0],
@@ -100,8 +100,12 @@ function App() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.material_category_id) {
-            alert('Vui lòng chọn danh mục quản lý hệ cứu (Năm)!');
+        if (!formData.year_id) {
+            alert('Vui lòng chọn Năm lưu trữ!');
+            return;
+        }
+        if (!formData.product_type) {
+            alert('Vui lòng chọn Phân loại sản phẩm!');
             return;
         }
         try {
@@ -128,12 +132,12 @@ function App() {
                     status: 'NEW',
                     issue_code: '',
                     lot_no: '',
+                    year_id: '',
                     material_category_id: '',
                     resolution_direction: '',
                     received_date: new Date().toISOString().split('T')[0],
                     detected_date: new Date().toISOString().split('T')[0]
                 });
-                setTempYearId('');
                 fetchData(selectedYear, selectedCategory);
             } else {
                 const errorData = await response.json();
@@ -192,32 +196,14 @@ function App() {
                             </div>
 
                             {years.map(y => (
-                                <div key={y.id} className="space-y-1">
-                                    <button
-                                        onClick={() => { setSelectedYear(y.id); setSelectedCategory(null); }}
-                                        className={`w-full flex items-center justify-between px-5 py-3 rounded-2xl font-bold text-sm transition-all duration-300 ${selectedYear === y.id ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' : 'text-slate-500 hover:bg-slate-50'}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <Calendar size={18} className={selectedYear === y.id ? 'text-blue-400' : 'text-slate-400'} />
-                                            <span>Năm {y.year}</span>
-                                        </div>
-                                        <ChevronDown size={14} className={`transition-transform duration-300 ${selectedYear === y.id ? 'rotate-0' : '-rotate-90'}`} />
-                                    </button>
-
-                                    {selectedYear === y.id && (
-                                        <div className="ml-8 pl-5 border-l-2 border-blue-100 space-y-1 py-2 animate-in slide-in-from-top-3 duration-300">
-                                            {y.MaterialCategories && y.MaterialCategories.map(cat => (
-                                                <button
-                                                    key={cat.id}
-                                                    onClick={() => setSelectedCategory(cat.id)}
-                                                    className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${selectedCategory === cat.id ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
-                                                >
-                                                    {cat.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                                <button
+                                    key={y.id}
+                                    onClick={() => { setSelectedYear(y.id); setSelectedCategory(null); }}
+                                    className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 ${selectedYear === y.id ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' : 'text-slate-500 hover:bg-slate-50'}`}
+                                >
+                                    <Calendar size={18} className={selectedYear === y.id ? 'text-blue-400' : 'text-slate-400'} />
+                                    <span>Năm {y.year}</span>
+                                </button>
                             ))}
                         </>
                     )}
@@ -331,7 +317,7 @@ function App() {
                                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Thông tin chi tiết sự cố</p>
                                     </div>
                                 </div>
-                                <button type="button" onClick={() => { setShowModal(false); setTempYearId(''); }} className="p-3 hover:bg-white hover:shadow-md rounded-full transition-all text-slate-400 hover:text-slate-900">
+                                <button type="button" onClick={() => setShowModal(false)} className="p-3 hover:bg-white hover:shadow-md rounded-full transition-all text-slate-400 hover:text-slate-900">
                                     <X size={24} strokeWidth={2.5} />
                                 </button>
                             </div>
@@ -343,12 +329,10 @@ function App() {
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Năm lưu trữ *</label>
                                         <select
                                             required
+                                            name="year_id"
                                             className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
-                                            value={tempYearId}
-                                            onChange={(e) => {
-                                                setTempYearId(e.target.value);
-                                                setFormData({ ...formData, material_category_id: '' });
-                                            }}
+                                            value={formData.year_id}
+                                            onChange={handleInputChange}
                                         >
                                             <option value="">-- Chọn năm --</option>
                                             {years.map(y => (
@@ -360,16 +344,16 @@ function App() {
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Phân loại sản phẩm *</label>
                                         <select
                                             required
-                                            disabled={!tempYearId}
-                                            name="material_category_id"
-                                            className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                                            value={formData.material_category_id}
+                                            name="product_type"
+                                            className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
+                                            value={formData.product_type}
                                             onChange={handleInputChange}
                                         >
                                             <option value="">-- Chọn phân loại --</option>
-                                            {tempYearId && years.find(y => String(y.id) === String(tempYearId))?.MaterialCategories?.map(cat => (
-                                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                            ))}
+                                            <option value="Nguyên Vật Liệu/Raw Material">Nguyên Vật Liệu/Raw Material</option>
+                                            <option value="Repacking">Repacking</option>
+                                            <option value="Thành phẩm/Products">Thành phẩm/Products</option>
+                                            <option value="Khác/Other">Khác/Other</option>
                                         </select>
                                     </div>
                                 </div>

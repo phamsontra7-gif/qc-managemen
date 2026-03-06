@@ -42,7 +42,7 @@ const MaterialCategory = sequelize.define('MaterialCategory', {
 const Issue = sequelize.define('Issue', {
   issue_code: { type: DataTypes.STRING, unique: true },
   product_type: {
-    type: DataTypes.ENUM('Nguyên vật liệu', 'repacking', 'thành phẩm', 'khác'),
+    type: DataTypes.ENUM('Nguyên Vật Liệu/Raw Material', 'Repacking', 'Thành phẩm/Products', 'Khác/Other'),
     allowNull: true
   },
   product_name: DataTypes.STRING,
@@ -99,6 +99,9 @@ MaterialCategory.belongsTo(Year, { foreignKey: 'year_id' });
 
 MaterialCategory.hasMany(Issue, { foreignKey: 'material_category_id' });
 Issue.belongsTo(MaterialCategory, { foreignKey: 'material_category_id' });
+
+Year.hasMany(Issue, { foreignKey: 'year_id' });
+Issue.belongsTo(Year, { foreignKey: 'year_id' });
 
 Issue.hasMany(Notification, { foreignKey: 'issue_id' });
 Notification.belongsTo(Issue, { foreignKey: 'issue_id' });

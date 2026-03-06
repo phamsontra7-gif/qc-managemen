@@ -130,22 +130,18 @@ app.get('/api/issues', authenticate, async (req, res) => {
         const { year_id, category_id } = req.query;
         let whereClause = {};
 
-        const include = [{
-            model: MaterialCategory,
-            include: [Year]
-        }];
-
         if (category_id) {
             whereClause.material_category_id = category_id;
         } else if (year_id) {
-            // If filtering by year, we need to find categories belonging to that year
-            const categories = await MaterialCategory.findAll({ where: { year_id } });
-            whereClause.material_category_id = categories.map(c => c.id);
+            whereClause.year_id = year_id;
         }
 
         const issues = await Issue.findAll({
             where: whereClause,
-            include: include,
+            include: [
+                { model: MaterialCategory, include: [Year] },
+                { model: Year }
+            ],
             order: [['last_updated', 'DESC']]
         });
         res.json(issues);
