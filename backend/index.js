@@ -108,7 +108,8 @@ app.delete('/api/users/:id', authenticate, isAdmin, async (req, res) => {
 app.get('/api/years', authenticate, async (req, res) => {
     try {
         const years = await Year.findAll({
-            include: [{ model: MaterialCategory }]
+            include: [{ model: MaterialCategory }],
+            order: [['year', 'ASC']]
         });
         res.json(years);
     } catch (error) {
@@ -229,6 +230,13 @@ app.listen(PORT, '0.0.0.0', async () => {
                     full_name: 'Hệ thống Quản trị',
                     role: 'ADMIN'
                 });
+            }
+
+            // Seed years if not present
+            const targetYears = [2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
+            for (const yearVal of targetYears) {
+                const [yearObj, created] = await Year.findOrCreate({ where: { year: yearVal } });
+                if (created) console.log(`Created year: ${yearVal}`);
             }
         });
     } catch (err) {
