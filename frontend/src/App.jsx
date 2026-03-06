@@ -337,38 +337,7 @@ function App() {
                             </div>
 
                             <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar-minimal">
-                                {/* Phân loại & Thời gian */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Phân loại sản phẩm *</label>
-                                        <select
-                                            required
-                                            name="product_type"
-                                            className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
-                                            value={formData.product_type}
-                                            onChange={handleInputChange}
-                                        >
-                                            <option value="">-- Chọn loại --</option>
-                                            <option value="Nguyên vật liệu">Nguyên vật liệu</option>
-                                            <option value="repacking">repacking</option>
-                                            <option value="thành phẩm">thành phẩm</option>
-                                            <option value="khác">khác</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Thời gian phát hiện *</label>
-                                        <input
-                                            required
-                                            name="detected_date"
-                                            type="date"
-                                            className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold cursor-pointer"
-                                            value={formData.detected_date}
-                                            onChange={handleInputChange}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Danh mục lưu trữ & Mã định danh */}
+                                {/* Năm lưu trữ & Phân loại sản phẩm */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Năm lưu trữ *</label>
@@ -388,7 +357,7 @@ function App() {
                                         </select>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Danh mục sản phẩm *</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Phân loại sản phẩm *</label>
                                         <select
                                             required
                                             disabled={!tempYearId}
@@ -397,7 +366,7 @@ function App() {
                                             value={formData.material_category_id}
                                             onChange={handleInputChange}
                                         >
-                                            <option value="">-- Chọn danh mục --</option>
+                                            <option value="">-- Chọn phân loại --</option>
                                             {tempYearId && years.find(y => String(y.id) === String(tempYearId))?.MaterialCategories?.map(cat => (
                                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
                                             ))}
@@ -405,16 +374,30 @@ function App() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Mã định danh</label>
-                                    <input
-                                        name="issue_code"
-                                        type="text"
-                                        className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
-                                        placeholder="QC-XXXXXX"
-                                        value={formData.issue_code}
-                                        onChange={handleInputChange}
-                                    />
+                                {/* Thời gian & Mã định danh */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Thời gian phát hiện *</label>
+                                        <input
+                                            required
+                                            name="detected_date"
+                                            type="date"
+                                            className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold cursor-pointer"
+                                            value={formData.detected_date}
+                                            onChange={handleInputChange}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Mã định danh</label>
+                                        <input
+                                            name="issue_code"
+                                            type="text"
+                                            className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
+                                            placeholder="QC-XXXXXX"
+                                            value={formData.issue_code}
+                                            onChange={handleInputChange}
+                                        />
+                                    </div>
                                 </div>
 
                                 {/* Tên sản phẩm */}
