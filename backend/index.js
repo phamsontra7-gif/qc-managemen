@@ -177,77 +177,77 @@ app.get('/api/issues', authenticate, async (req, res) => {
 
 app.post('/api/issues', authenticate, async (req, res) => {
     try {
-        // Sanitize incoming body: convert empty strings to null
-        Object.keys(req.body).forEach(key => {
-            if (typeof req.body[key] === 'string' && req.body[key].trim() === '') {
-                req.body[key] = null;
+        // 1. Sanitize the body: trim all strings and convert empty to null
+        const bodyContent = { ...req.body };
+        Object.keys(bodyContent).forEach(key => {
+            if (typeof bodyContent[key] === 'string') {
+                bodyContent[key] = bodyContent[key].trim();
+                if (bodyContent[key] === '') bodyContent[key] = null;
             }
         });
 
-        const { product_type, detected_date, year_id, material_category_id } = req.body;
+        const { product_type, detected_date } = bodyContent;
 
-        // Generate issue_code if not provided or empty
-        if (!req.body.issue_code) {
+        // 2. Automated issue_code generation (e.g., aa-xxyyzz-tt)
+        if (!bodyContent.issue_code) {
             try {
-                // Map product_type to aa (Fixed per user request)
-                const pt = product_type || '';
+                // A. Determine prefix (aa)
                 let aa = 'K';
-                if (pt.toLowerCase().includes('thành phẩm') || pt.toLowerCase().includes('products')) aa = 'TP';
-                else if (pt.toLowerCase().includes('nguyên vật liệu') || pt.toLowerCase().includes('raw')) aa = 'NL';
-                else if (pt.toLowerCase().includes('repacking')) aa = 'RP';
-                else aa = 'K';
+                const pt = (product_type || '').toLowerCase();
+                if (pt.includes('thành phẩm') || pt.includes('products')) aa = 'TP';
+                else if (pt.includes('nguyên vật liệu') || pt.includes('raw')) aa = 'NL';
+                else if (pt.includes('repacking')) aa = 'RP';
 
-                // Extract DDMMYY safely from YYYY-MM-DD string
+                // B. Determine date code (xxyyzz) from detected_date (YYYY-MM-DD -> DDMMYY)
                 let xxyyzz = '';
                 if (detected_date && detected_date.includes('-')) {
-                    const parts = detected_date.split('-'); // [YYYY, MM, DD]
-                    if (parts.length === 3) {
-                        const y = parts[0].slice(-2);
-                        const m = parts[1].padStart(2, '0');
-                        const d = parts[2].padStart(2, '0');
-                        xxyyzz = `${d}${m}${y}`;
+                    const [y4, mm, dd] = detected_date.split('-');
+                    if (y4 && mm && dd) {
+                        xxyyzz = `${dd}${mm}${y4.slice(-2)}`;
                     }
                 }
 
+                // Fallback for date if parsing fails
                 if (!xxyyzz) {
-                    const now = new Date();
-                    const d = String(now.getDate()).padStart(2, '0');
-                    const m = String(now.getMonth() + 1).padStart(2, '0');
-                    const y = String(now.getFullYear()).slice(-2);
+                    const today = new Date();
+                    const d = String(today.getDate()).padStart(2, '0');
+                    const m = String(today.getMonth() + 1).padStart(2, '0');
+                    const y = String(today.getFullYear()).slice(-2);
                     xxyyzz = `${d}${m}${y}`;
                 }
 
-                const baseCode = `${aa}-${xxyyzz}-`;
+                const basePattern = `${aa}-${xxyyzz}-`;
 
-                // Find highest existing TT for this prefix and day
-                const latestIssue = await Issue.findOne({
+                // C. Determine sequence (tt)
+                const matchingIssues = await Issue.findAll({
                     where: {
-                        issue_code: {
-                            [Op.like]: `${baseCode}%`
-                        }
+                        issue_code: { [Op.like]: `${basePattern}%` }
                     },
-                    order: [['issue_code', 'DESC']]
+                    attributes: ['issue_code'],
+                    order: [['issue_code', 'DESC']],
+                    limit: 1
                 });
 
                 let nextNumber = 1;
-                if (latestIssue && latestIssue.issue_code) {
-                    const codeParts = latestIssue.issue_code.split('-');
-                    const lastValue = codeParts[codeParts.length - 1];
-                    const lastTT = parseInt(lastValue);
-                    if (!isNaN(lastTT)) {
-                        nextNumber = lastTT + 1;
+                if (matchingIssues.length > 0 && matchingIssues[0].issue_code) {
+                    const parts = matchingIssues[0].issue_code.split('-');
+                    const lastPart = parts[parts.length - 1];
+                    const lastNum = parseInt(lastPart);
+                    if (!isNaN(lastNum)) {
+                        nextNumber = lastNum + 1;
                     }
                 }
 
-                const ttValue = String(nextNumber).padStart(2, '0');
-                req.body.issue_code = `${baseCode}${ttValue}`;
-            } catch (genError) {
-                console.error('ERROR IN CODE GEN:', genError);
-                req.body.issue_code = null;
+                const tt = String(nextNumber).padStart(2, '0');
+                bodyContent.issue_code = `${basePattern}${tt}`;
+                console.log('Automated Code Generated:', bodyContent.issue_code);
+            } catch (genErr) {
+                console.error('Error generating issue_code:', genErr.message);
+                bodyContent.issue_code = null;
             }
         }
 
-        const issue = await Issue.create(req.body);
+        const issue = await Issue.create(bodyContent);
         res.status(201).json(issue);
     } catch (error) {
         console.error('CRITICAL SERVER ERROR:', error);
