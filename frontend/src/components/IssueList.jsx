@@ -2,6 +2,17 @@ import React from 'react';
 import StatusBadge from './StatusBadge';
 import { Camera } from 'lucide-react';
 
+const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const [year, month, day] = dateString.split('-');
+    if (year && month && day) return `${day}/${month}/${year}`;
+    const date = new Date(dateString);
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+};
+
 const IssueList = ({ issues, onSelectIssue }) => {
     return (
         <div className="overflow-hidden bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl overflow-x-auto">
@@ -10,6 +21,7 @@ const IssueList = ({ issues, onSelectIssue }) => {
                     <tr className="bg-slate-50/50 border-b border-slate-200">
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Loại SP</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Mã định danh</th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Ngày phát hiện</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Sản phẩm</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Lỗi phát hiện</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Số lượng</th>
@@ -19,7 +31,7 @@ const IssueList = ({ issues, onSelectIssue }) => {
                 <tbody className="divide-y divide-slate-100">
                     {issues.length === 0 ? (
                         <tr>
-                            <td colSpan="6" className="px-6 py-12 text-center">
+                            <td colSpan="7" className="px-6 py-12 text-center">
                                 <div className="flex flex-col items-center gap-2">
                                     <p className="text-slate-400 font-medium">Chưa có dữ liệu sự cố</p>
                                     <p className="text-slate-300 text-xs">Vui lòng nhấn "Báo cáo mới" để thêm</p>
@@ -48,6 +60,9 @@ const IssueList = ({ issues, onSelectIssue }) => {
                                     >
                                         {issue.issue_code || `#${String(issue.id).padStart(4, '0')}`}
                                     </button>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-600">
+                                    {formatDate(issue.detected_date)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center gap-2">

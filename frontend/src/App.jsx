@@ -5,6 +5,17 @@ import Login from './components/Login';
 import UserManager from './components/UserManager';
 import API_BASE_URL from './config';
 
+const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const [year, month, day] = dateString.split('-');
+    if (year && month && day) return `${day}/${month}/${year}`;
+    const date = new Date(dateString);
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+};
+
 function App() {
     const [view, setView] = useState('dashboard');
     const [issues, setIssues] = useState([]);
@@ -354,7 +365,7 @@ function App() {
             {showModal && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6 overflow-y-auto">
                     <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/20 my-auto">
-                        <form onSubmit={handleSubmit} className="flex flex-col h-full">
+                        <form onSubmit={handleSubmit} className="flex flex-col h-full" autoComplete="off">
                             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 backdrop-blur-sm">
                                 <div className="flex items-center gap-4">
                                     <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg">
@@ -424,6 +435,7 @@ function App() {
                                         <input
                                             name="issue_code"
                                             type="text"
+                                            autoComplete="off"
                                             className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
                                             placeholder="Tự động: AA-DDMMYY-TT"
                                             value={formData.issue_code}
@@ -440,6 +452,7 @@ function App() {
                                         required
                                         name="product_name"
                                         type="text"
+                                        autoComplete="off"
                                         className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
                                         placeholder="Tên sản phẩm..."
                                         value={formData.product_name}
@@ -453,6 +466,7 @@ function App() {
                                     <textarea
                                         required
                                         name="defect_description"
+                                        autoComplete="off"
                                         className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-rose-500 outline-none bg-slate-50 font-bold min-h-[100px] resize-none"
                                         placeholder="Mô tả chi tiết sự cố..."
                                         value={formData.defect_description}
@@ -469,6 +483,7 @@ function App() {
                                         <input
                                             name="quantity"
                                             type="number"
+                                            autoComplete="off"
                                             className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
                                             placeholder="0.00"
                                             value={formData.quantity}
@@ -497,6 +512,7 @@ function App() {
                                         <input
                                             name="lot_no"
                                             type="text"
+                                            autoComplete="off"
                                             className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
                                             placeholder="Lot No..."
                                             value={formData.lot_no}
@@ -647,7 +663,7 @@ function App() {
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày phát hiện</p>
-                                    <p className="font-bold text-slate-900">{selectedIssue.detected_date || 'N/A'}</p>
+                                    <p className="font-bold text-slate-900">{formatDate(selectedIssue.detected_date)}</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Số Lot</p>
