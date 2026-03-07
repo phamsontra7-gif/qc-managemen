@@ -64,6 +64,14 @@ const Issue = sequelize.define('Issue', {
   last_updated: {
     type: DataTypes.DATE,
     defaultValue: Sequelize.NOW
+  },
+  year_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  material_category_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   }
 }, { tableName: 'issues', timestamps: false });
 

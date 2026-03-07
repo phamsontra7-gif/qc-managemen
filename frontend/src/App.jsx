@@ -195,6 +195,14 @@ function App() {
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Lưu trữ theo năm</p>
                             </div>
 
+                            <button
+                                onClick={() => { setSelectedYear(null); setSelectedCategory(null); }}
+                                className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 group ${selectedYear === null ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' : 'text-slate-500 hover:bg-slate-50'}`}
+                            >
+                                <LayoutGrid size={18} className={selectedYear === null ? 'text-blue-400' : 'text-slate-400 group-hover:text-blue-500'} />
+                                <span>Tất cả</span>
+                            </button>
+
                             {years.map(y => (
                                 <button
                                     key={y.id}
@@ -237,14 +245,14 @@ function App() {
                             <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-3 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white w-fit px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
-                                        <span>QC Report</span>
+                                        <span>Báo cáo</span>
                                         <ChevronRight size={12} strokeWidth={3} className="text-blue-500" />
-                                        <span className={selectedYear ? 'text-slate-900' : ''}>{selectedYear ? `Năm ${years.find(y => y.id === selectedYear)?.year}` : 'Tất cả năm'}</span>
+                                        <span className={selectedYear ? 'text-slate-900' : 'text-blue-600 font-extrabold'}>{selectedYear ? `Năm ${years.find(y => y.id === selectedYear)?.year}` : 'Tất cả năm'}</span>
                                         {selectedCategory && (
                                             <>
                                                 <ChevronRight size={12} strokeWidth={3} className="text-blue-500" />
                                                 <span className="text-blue-600 font-extrabold">
-                                                    {years.find(y => y.id === selectedYear)?.MaterialCategories?.find(c => c.id === selectedCategory)?.name}
+                                                    Danh mục ID: {selectedCategory}
                                                 </span>
                                             </>
                                         )}
