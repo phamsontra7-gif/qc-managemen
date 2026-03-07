@@ -198,27 +198,36 @@ app.post('/api/issues', authenticate, async (req, res) => {
             const xxyyzz = `${dd}${mm}${yy}`;
 
             // Count issues of same type in same month/year to determine tt
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            const startOfMonth = new Date(year, month, 1);
-            const endOfMonth = new Date(year, month + 1, 0);
-
-            const count = await Issue.count({
+            const baseCode = `${aa}-${xxyyzz}-`;
+            const latestIssue = await Issue.findOne({
                 where: {
-                    product_type: product_type,
-                    detected_date: {
-                        [Op.between]: [startOfMonth.toISOString().split('T')[0], endOfMonth.toISOString().split('T')[0]]
+                    issue_code: {
+                        [Op.like]: `${baseCode}%`
                     }
-                }
+                },
+                order: [['issue_code', 'DESC']]
             });
 
-            const tt = String(count + 1).padStart(2, '0');
-            req.body.issue_code = `${aa}-${xxyyzz}-${tt}`;
+            let nextNumber = 1;
+            if (latestIssue && latestIssue.issue_code) {
+                const parts = latestIssue.issue_code.split('-');
+                const lastTT = parseInt(parts[parts.length - 1]);
+                if (!isNaN(lastTT)) {
+                    nextNumber = lastTT + 1;
+                }
+            }
+
+            const tt = String(nextNumber).padStart(2, '0');
+            req.body.issue_code = `${baseCode}${tt}`;
         }
 
         const issue = await Issue.create(req.body);
         res.status(201).json(issue);
     } catch (error) {
+        if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+            const messages = error.errors.map(err => err.message);
+            return res.status(400).json({ error: messages.join(', ') });
+        }
         res.status(400).json({ error: error.message });
     }
 });
