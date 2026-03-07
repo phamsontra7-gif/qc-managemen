@@ -111,7 +111,6 @@ function App() {
         try {
             const dataToSend = {
                 ...formData,
-                issue_code: formData.issue_code || `QC-${Date.now().toString().slice(-6)}`,
                 // Ensure numeric fields are numbers or null, not empty strings
                 year_id: formData.year_id ? parseInt(formData.year_id) : null,
                 material_category_id: formData.material_category_id ? parseInt(formData.material_category_id) : null,

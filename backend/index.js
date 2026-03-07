@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { Sequelize, DataTypes, Op } = require('sequelize');
 const { sequelize, Issue, MaterialCategory, Year, User } = require('./db');
 require('./cron'); // Initialize cron jobs
 
@@ -152,6 +153,45 @@ app.get('/api/issues', authenticate, async (req, res) => {
 
 app.post('/api/issues', authenticate, async (req, res) => {
     try {
+        const { product_type, detected_date } = req.body;
+
+        // Generate issue_code if not provided
+        if (!req.body.issue_code) {
+            // Map product_type to aa
+            const prefixMap = {
+                'Thành phẩm/Products': 'TP',
+                'Nguyên Vật Liệu/Raw Material': 'NL',
+                'Repacking': 'RP',
+                'Khác/Other': 'K'
+            };
+            const aa = prefixMap[product_type] || 'K';
+
+            // Extract DDMMYY from detected_date (format: YYYY-MM-DD)
+            const date = new Date(detected_date);
+            const dd = String(date.getDate()).padStart(2, '0');
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const yy = String(date.getFullYear()).slice(-2);
+            const xxyyzz = `${dd}${mm}${yy}`;
+
+            // Count issues of same type in same month/year to determine tt
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const startOfMonth = new Date(year, month, 1);
+            const endOfMonth = new Date(year, month + 1, 0);
+
+            const count = await Issue.count({
+                where: {
+                    product_type: product_type,
+                    detected_date: {
+                        [Op.between]: [startOfMonth.toISOString().split('T')[0], endOfMonth.toISOString().split('T')[0]]
+                    }
+                }
+            });
+
+            const tt = String(count + 1).padStart(2, '0');
+            req.body.issue_code = `${aa}-${xxyyzz}-${tt}`;
+        }
+
         const issue = await Issue.create(req.body);
         res.status(201).json(issue);
     } catch (error) {
