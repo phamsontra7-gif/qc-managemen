@@ -180,46 +180,58 @@ app.post('/api/issues', authenticate, async (req, res) => {
         const { product_type, detected_date } = req.body;
 
         // Generate issue_code if not provided
-        if (!req.body.issue_code) {
-            // Map product_type to aa
-            const prefixMap = {
-                'Thành phẩm/Products': 'TP',
-                'Nguyên Vật Liệu/Raw Material': 'NL',
-                'Repacking': 'RP',
-                'Khác/Other': 'K'
-            };
-            const aa = prefixMap[product_type] || 'K';
+        if (!req.body.issue_code || req.body.issue_code === '') {
+            try {
+                // Map product_type to aa
+                const prefixMap = {
+                    'Thành phẩm/Products': 'TP',
+                    'Nguyên Vật Liệu/Raw Material': 'NL',
+                    'Repacking': 'RP',
+                    'Khác/Other': 'K'
+                };
+                const aa = prefixMap[product_type] || 'K';
 
-            // Extract DDMMYY from detected_date (format: YYYY-MM-DD)
-            const date = new Date(detected_date);
-            const dd = String(date.getDate()).padStart(2, '0');
-            const mm = String(date.getMonth() + 1).padStart(2, '0');
-            const yy = String(date.getFullYear()).slice(-2);
-            const xxyyzz = `${dd}${mm}${yy}`;
+                // Extract DDMMYY from detected_date (format: YYYY-MM-DD)
+                const date = new Date(detected_date || new Date());
+                if (isNaN(date.getTime())) {
+                    // Fallback if date is invalid
+                    req.body.issue_code = null;
+                } else {
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const yy = String(date.getFullYear()).slice(-2);
+                    const xxyyzz = `${dd}${mm}${yy}`;
 
-            // Count issues of same type in same month/year to determine tt
-            const baseCode = `${aa}-${xxyyzz}-`;
-            const latestIssue = await Issue.findOne({
-                where: {
-                    issue_code: {
-                        [Op.like]: `${baseCode}%`
+                    const baseCode = `${aa}-${xxyyzz}-`;
+                    const latestIssue = await Issue.findOne({
+                        where: {
+                            issue_code: {
+                                [Op.like]: `${baseCode}%`
+                            }
+                        },
+                        order: [['issue_code', 'DESC']]
+                    });
+
+                    let nextNumber = 1;
+                    if (latestIssue && latestIssue.issue_code) {
+                        const parts = latestIssue.issue_code.split('-');
+                        const lastTT = parseInt(parts[parts.length - 1]);
+                        if (!isNaN(lastTT)) {
+                            nextNumber = lastTT + 1;
+                        }
                     }
-                },
-                order: [['issue_code', 'DESC']]
-            });
 
-            let nextNumber = 1;
-            if (latestIssue && latestIssue.issue_code) {
-                const parts = latestIssue.issue_code.split('-');
-                const lastTT = parseInt(parts[parts.length - 1]);
-                if (!isNaN(lastTT)) {
-                    nextNumber = lastTT + 1;
+                    const tt = String(nextNumber).padStart(2, '0');
+                    req.body.issue_code = `${baseCode}${tt}`;
                 }
+            } catch (genError) {
+                console.error('Error generating issue_code:', genError);
+                req.body.issue_code = null; // Let DB handle it
             }
-
-            const tt = String(nextNumber).padStart(2, '0');
-            req.body.issue_code = `${baseCode}${tt}`;
         }
+
+        // Final check: if it's an empty string, set it to null
+        if (req.body.issue_code === '') req.body.issue_code = null;
 
         const issue = await Issue.create(req.body);
         res.status(201).json(issue);
