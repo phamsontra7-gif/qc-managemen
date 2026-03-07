@@ -224,12 +224,13 @@ app.post('/api/issues', authenticate, async (req, res) => {
         const issue = await Issue.create(req.body);
         res.status(201).json(issue);
     } catch (error) {
-        console.error('SERVER ERROR IN POST /api/issues:', error);
-        if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
-            const messages = error.errors.map(err => `${err.path}: ${err.message}`);
-            return res.status(400).json({ error: messages.join(', ') });
+        console.error('CRITICAL SERVER ERROR:', error);
+        // Map all Sequelize errors to descriptive strings
+        if (error.errors) {
+            const desc = error.errors.map(e => `${e.path} (${e.value}): ${e.message}`).join(' | ');
+            return res.status(400).json({ error: `Chi tiết: ${desc}` });
         }
-        res.status(400).json({ error: error.message });
+        res.status(400).json({ error: `Lỗi hệ thống: ${error.message}` });
     }
 });
 
