@@ -180,56 +180,66 @@ app.post('/api/issues', authenticate, async (req, res) => {
         const { product_type, detected_date } = req.body;
 
         // Generate issue_code if not provided
-        if (!req.body.issue_code || req.body.issue_code === '') {
+        if (!req.body.issue_code || req.body.issue_code.trim() === '') {
             try {
-                // Map product_type to aa (More flexible matching)
+                // Map product_type to aa (Fixed per user request)
                 const pt = product_type || '';
                 let aa = 'K';
-                if (pt.includes('Thành phẩm')) aa = 'TP';
-                else if (pt.includes('Nguyên Vật Liệu')) aa = 'NL';
+                if (pt.includes('Thành phẩm') || pt.includes('Products')) aa = 'TP';
+                else if (pt.includes('Nguyên Vật Liệu') || pt.includes('Raw')) aa = 'NL';
                 else if (pt.includes('Repacking')) aa = 'RP';
                 else aa = 'K';
 
-                // Extract DDMMYY from detected_date (format: YYYY-MM-DD)
-                const date = new Date(detected_date || new Date());
-                if (isNaN(date.getTime())) {
-                    // Fallback if date is invalid
-                    req.body.issue_code = null;
-                } else {
-                    const dd = String(date.getDate()).padStart(2, '0');
-                    const mm = String(date.getMonth() + 1).padStart(2, '0');
-                    const yy = String(date.getFullYear()).slice(-2);
-                    const xxyyzz = `${dd}${mm}${yy}`;
-
-                    const baseCode = `${aa}-${xxyyzz}-`;
-                    const latestIssue = await Issue.findOne({
-                        where: {
-                            issue_code: {
-                                [Op.like]: `${baseCode}%`
-                            }
-                        },
-                        order: [['issue_code', 'DESC']]
-                    });
-
-                    let nextNumber = 1;
-                    if (latestIssue && latestIssue.issue_code) {
-                        const parts = latestIssue.issue_code.split('-');
-                        const lastTT = parseInt(parts[parts.length - 1]);
-                        if (!isNaN(lastTT)) {
-                            nextNumber = lastTT + 1;
-                        }
+                // Extract DDMMYY safely from YYYY-MM-DD string
+                let xxyyzz = '';
+                if (detected_date && detected_date.includes('-')) {
+                    const parts = detected_date.split('-'); // [YYYY, MM, DD]
+                    if (parts.length === 3) {
+                        const y = parts[0].slice(-2);
+                        const m = parts[1].padStart(2, '0');
+                        const d = parts[2].padStart(2, '0');
+                        xxyyzz = `${d}${m}${y}`;
                     }
-
-                    const tt = String(nextNumber).padStart(2, '0');
-                    req.body.issue_code = `${baseCode}${tt}`;
                 }
+
+                if (!xxyyzz) {
+                    const now = new Date();
+                    const d = String(now.getDate()).padStart(2, '0');
+                    const m = String(now.getMonth() + 1).padStart(2, '0');
+                    const y = String(now.getFullYear()).slice(-2);
+                    xxyyzz = `${d}${m}${y}`;
+                }
+
+                const baseCode = `${aa}-${xxyyzz}-`;
+
+                // Find highest existing TT for this prefix and day
+                const latestIssue = await Issue.findOne({
+                    where: {
+                        issue_code: {
+                            [Op.like]: `${baseCode}%`
+                        }
+                    },
+                    order: [['issue_code', 'DESC']]
+                });
+
+                let nextNumber = 1;
+                if (latestIssue && latestIssue.issue_code) {
+                    const codeParts = latestIssue.issue_code.split('-');
+                    const lastValue = codeParts[codeParts.length - 1];
+                    const lastTT = parseInt(lastValue);
+                    if (!isNaN(lastTT)) {
+                        nextNumber = lastTT + 1;
+                    }
+                }
+
+                const ttValue = String(nextNumber).padStart(2, '0');
+                req.body.issue_code = `${baseCode}${ttValue}`;
             } catch (genError) {
-                console.error('Error generating issue_code:', genError);
-                req.body.issue_code = null; // Let DB handle it
+                console.error('ERROR IN CODE GEN:', genError);
+                req.body.issue_code = null;
             }
         }
 
-        // Final check: if it's an empty string, set it to null
         if (req.body.issue_code === '') req.body.issue_code = null;
 
         const issue = await Issue.create(req.body);
