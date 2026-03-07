@@ -390,10 +390,11 @@ function App() {
                                             name="issue_code"
                                             type="text"
                                             className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold"
-                                            placeholder="QC-XXXXXX"
+                                            placeholder="Tự động: AA-DDMMYY-TT"
                                             value={formData.issue_code}
                                             onChange={handleInputChange}
                                         />
+                                        <p className="text-[9px] text-slate-400 italic ml-2">* Để trống để hệ thống tự tạo mã theo nhóm</p>
                                     </div>
                                 </div>
 
