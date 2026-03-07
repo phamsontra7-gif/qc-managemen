@@ -109,16 +109,22 @@ function App() {
             return;
         }
         try {
+            const dataToSend = {
+                ...formData,
+                issue_code: formData.issue_code || `QC-${Date.now().toString().slice(-6)}`,
+                // Ensure numeric fields are numbers or null, not empty strings
+                year_id: formData.year_id ? parseInt(formData.year_id) : null,
+                material_category_id: formData.material_category_id ? parseInt(formData.material_category_id) : null,
+                quantity: formData.quantity ? parseFloat(formData.quantity) : null
+            };
+
             const response = await fetch(`${API_BASE_URL}/api/issues`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     ...getAuthHeader()
                 },
-                body: JSON.stringify({
-                    ...formData,
-                    issue_code: formData.issue_code || `QC-${Date.now().toString().slice(-6)}`
-                }),
+                body: JSON.stringify(dataToSend),
             });
 
             if (response.ok) {
