@@ -177,17 +177,24 @@ app.get('/api/issues', authenticate, async (req, res) => {
 
 app.post('/api/issues', authenticate, async (req, res) => {
     try {
-        const { product_type, detected_date } = req.body;
+        // Sanitize incoming body: convert empty strings to null
+        Object.keys(req.body).forEach(key => {
+            if (typeof req.body[key] === 'string' && req.body[key].trim() === '') {
+                req.body[key] = null;
+            }
+        });
 
-        // Generate issue_code if not provided
-        if (!req.body.issue_code || req.body.issue_code.trim() === '') {
+        const { product_type, detected_date, year_id, material_category_id } = req.body;
+
+        // Generate issue_code if not provided or empty
+        if (!req.body.issue_code) {
             try {
                 // Map product_type to aa (Fixed per user request)
                 const pt = product_type || '';
                 let aa = 'K';
-                if (pt.includes('Thành phẩm') || pt.includes('Products')) aa = 'TP';
-                else if (pt.includes('Nguyên Vật Liệu') || pt.includes('Raw')) aa = 'NL';
-                else if (pt.includes('Repacking')) aa = 'RP';
+                if (pt.toLowerCase().includes('thành phẩm') || pt.toLowerCase().includes('products')) aa = 'TP';
+                else if (pt.toLowerCase().includes('nguyên vật liệu') || pt.toLowerCase().includes('raw')) aa = 'NL';
+                else if (pt.toLowerCase().includes('repacking')) aa = 'RP';
                 else aa = 'K';
 
                 // Extract DDMMYY safely from YYYY-MM-DD string
@@ -240,18 +247,20 @@ app.post('/api/issues', authenticate, async (req, res) => {
             }
         }
 
-        if (req.body.issue_code === '') req.body.issue_code = null;
-
         const issue = await Issue.create(req.body);
         res.status(201).json(issue);
     } catch (error) {
         console.error('CRITICAL SERVER ERROR:', error);
-        // Map all Sequelize errors to descriptive strings
+
+        let details = error.message;
         if (error.errors) {
-            const desc = error.errors.map(e => `${e.path} (${e.value}): ${e.message}`).join(' | ');
-            return res.status(400).json({ error: `Chi tiết: ${desc}` });
+            details = error.errors.map(e => `${e.path || 'unknown'}: ${e.message}`).join(' | ');
         }
-        res.status(400).json({ error: `Lỗi hệ thống: ${error.message}` });
+
+        res.status(400).json({
+            error: `Lỗi chi tiết từ DB: ${details}`,
+            fullError: error.name
+        });
     }
 });
 
