@@ -123,6 +123,10 @@ function App() {
             alert('Vui lòng chọn Phân loại sản phẩm!');
             return;
         }
+        if (!formData.product_name || formData.product_name.trim() === '') {
+            alert('Vui lòng nhập Tên sản phẩm!');
+            return;
+        }
         setLoading(true);
         try {
             let currentImageUrl = formData.image_url;
@@ -167,6 +171,7 @@ function App() {
             });
 
             if (response.ok) {
+                // ... same success code
                 setShowModal(false);
                 setFormData({
                     product_name: '',
@@ -187,12 +192,17 @@ function App() {
                 setSelectedFile(null);
                 setImagePreview(null);
                 fetchData(selectedYear, selectedCategory);
+                setLoading(false);
             } else {
+                setLoading(false);
                 const errorData = await response.json();
-                alert(`Lỗi: ${errorData.error}`);
+                console.error('Backend error:', errorData);
+                alert(`Lỗi từ hệ thống: ${errorData.error || JSON.stringify(errorData)}`);
             }
         } catch (error) {
+            setLoading(false);
             console.error('Error creating issue:', error);
+            alert(`Lỗi kết nối: ${error.message}`);
         }
     };
 
@@ -409,7 +419,7 @@ function App() {
                                             onChange={handleInputChange}
                                         >
                                             <option value="">-- Chọn phân loại --</option>
-                                            <option value="Nguyên Vật Liệu/Raw Material">Nguyên Vật Liệu/Raw Material</option>
+                                            <option value="Nguyên Vật Liệu/Raw Masterial">Nguyên Vật Liệu/Raw Masterial</option>
                                             <option value="Repacking">Repacking</option>
                                             <option value="Thành phẩm/Products">Thành phẩm/Products</option>
                                             <option value="Khác/Other">Khác/Other</option>

@@ -182,14 +182,13 @@ app.post('/api/issues', authenticate, async (req, res) => {
         // Generate issue_code if not provided
         if (!req.body.issue_code || req.body.issue_code === '') {
             try {
-                // Map product_type to aa
-                const prefixMap = {
-                    'Thành phẩm/Products': 'TP',
-                    'Nguyên Vật Liệu/Raw Material': 'NL',
-                    'Repacking': 'RP',
-                    'Khác/Other': 'K'
-                };
-                const aa = prefixMap[product_type] || 'K';
+                // Map product_type to aa (More flexible matching)
+                const pt = product_type || '';
+                let aa = 'K';
+                if (pt.includes('Thành phẩm')) aa = 'TP';
+                else if (pt.includes('Nguyên Vật Liệu')) aa = 'NL';
+                else if (pt.includes('Repacking')) aa = 'RP';
+                else aa = 'K';
 
                 // Extract DDMMYY from detected_date (format: YYYY-MM-DD)
                 const date = new Date(detected_date || new Date());
