@@ -1,13 +1,14 @@
 import React from 'react';
 import StatusBadge from './StatusBadge';
 
-const IssueList = ({ issues }) => {
+const IssueList = ({ issues, onSelectIssue }) => {
     return (
         <div className="overflow-hidden bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl overflow-x-auto">
             <table className="min-w-full table-auto">
                 <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-200">
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Loại SP</th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Mã định danh</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Sản phẩm</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Lỗi phát hiện</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Số lượng</th>
@@ -17,7 +18,7 @@ const IssueList = ({ issues }) => {
                 <tbody className="divide-y divide-slate-100">
                     {issues.length === 0 ? (
                         <tr>
-                            <td colSpan="5" className="px-6 py-12 text-center">
+                            <td colSpan="6" className="px-6 py-12 text-center">
                                 <div className="flex flex-col items-center gap-2">
                                     <p className="text-slate-400 font-medium">Chưa có dữ liệu sự cố</p>
                                     <p className="text-slate-300 text-xs">Vui lòng nhấn "Báo cáo mới" để thêm</p>
@@ -40,11 +41,18 @@ const IssueList = ({ issues }) => {
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <button
+                                        onClick={() => onSelectIssue(issue)}
+                                        className="text-sm font-black text-blue-600 hover:text-blue-800 transition-colors bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 shadow-sm hover:shadow-md"
+                                    >
+                                        {issue.issue_code || `#${String(issue.id).padStart(4, '0')}`}
+                                    </button>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm font-semibold text-slate-900">{issue.product_name}</div>
                                     <div className="text-xs text-slate-400 font-medium capitalize">
-                                        {issue.issue_code ? `${issue.issue_code}` : `#${issue.id + 1000}`}
-                                        {issue.lot_no ? ` • Lot: ${issue.lot_no}` : ''}
-                                        {issue.Year && ` • Năm ${issue.Year.year}`}
+                                        {issue.lot_no ? `Lot: ${issue.lot_no} • ` : ''}
+                                        {issue.Year && `Năm ${issue.Year.year}`}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">

@@ -11,6 +11,7 @@ function App() {
     const [years, setYears] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [selectedIssue, setSelectedIssue] = useState(null);
     const [selectedYear, setSelectedYear] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [user, setUser] = useState(() => {
@@ -305,7 +306,10 @@ function App() {
                                 </div>
                             ) : (
                                 <div className="animate-in fade-in duration-700">
-                                    <IssueList issues={issues} />
+                                    <IssueList
+                                        issues={issues}
+                                        onSelectIssue={(issue) => setSelectedIssue(issue)}
+                                    />
                                 </div>
                             )}
                         </>
@@ -528,6 +532,100 @@ function App() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* Detail Modal */}
+            {selectedIssue && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6 overflow-y-auto">
+                    <div className="bg-white w-full max-w-3xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/20 my-auto">
+                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 backdrop-blur-sm">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg">
+                                    <ShieldCheck size={24} strokeWidth={3} />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Chi tiết sự cố</h2>
+                                    <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mt-1">{selectedIssue.issue_code}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setSelectedIssue(null)} className="p-3 hover:bg-white hover:shadow-md rounded-full transition-all text-slate-400 hover:text-slate-900">
+                                <X size={24} strokeWidth={2.5} />
+                            </button>
+                        </div>
+
+                        <div className="p-10 space-y-10 max-h-[75vh] overflow-y-auto custom-scrollbar-minimal">
+                            {/* Header Info */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phân loại</p>
+                                    <p className="font-bold text-slate-900">{selectedIssue.product_type || 'N/A'}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày phát hiện</p>
+                                    <p className="font-bold text-slate-900">{selectedIssue.detected_date || 'N/A'}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Số Lot</p>
+                                    <p className="font-bold text-slate-900">{selectedIssue.lot_no || 'N/A'}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trạng thái</p>
+                                    <div className="pt-1">
+                                        <div className={`w-fit px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider 
+                                            ${selectedIssue.status === 'NEW' ? 'bg-rose-100 text-rose-700' :
+                                                selectedIssue.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                                                    'bg-emerald-100 text-emerald-700'}`}>
+                                            {selectedIssue.status}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Main Content */}
+                            <div className="space-y-6">
+                                <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tên sản phẩm</p>
+                                    <p className="text-xl font-black text-slate-900">{selectedIssue.product_name}</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Mô tả lỗi</p>
+                                        <div className="bg-rose-50/50 p-6 rounded-3xl border-2 border-rose-100 text-slate-700 font-bold leading-relaxed">
+                                            {selectedIssue.defect_description}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Hướng xử lý</p>
+                                        <div className="bg-emerald-50/50 p-6 rounded-3xl border-2 border-emerald-100 text-emerald-800 font-bold leading-relaxed">
+                                            {selectedIssue.resolution_direction || 'Chưa có hướng xử lý...'}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-blue-50/50 p-6 rounded-3xl border-2 border-blue-100 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Số lượng sự cố</p>
+                                        <p className="text-2xl font-black text-blue-600">
+                                            {Number(selectedIssue.quantity || 0).toLocaleString()} <span className="text-sm font-bold text-blue-400 uppercase">{selectedIssue.unit}</span>
+                                        </p>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl shadow-sm text-slate-400">
+                                        <Clock size={24} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-8 bg-slate-50 border-t border-slate-100">
+                            <button
+                                onClick={() => setSelectedIssue(null)}
+                                className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black hover:bg-slate-800 transition-all text-sm uppercase tracking-[0.2em]"
+                            >
+                                Đóng chi tiết
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
