@@ -1,5 +1,6 @@
 import React from 'react';
 import StatusBadge from './StatusBadge';
+import { Camera } from 'lucide-react';
 
 const IssueList = ({ issues, onSelectIssue }) => {
     return (
@@ -49,7 +50,10 @@ const IssueList = ({ issues, onSelectIssue }) => {
                                     </button>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm font-semibold text-slate-900">{issue.product_name}</div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-sm font-semibold text-slate-900">{issue.product_name}</div>
+                                        {issue.image_url && <Camera size={14} className="text-blue-500" title="Có ảnh đính kèm" />}
+                                    </div>
                                     <div className="text-xs text-slate-400 font-medium capitalize">
                                         {issue.lot_no ? `Lot: ${issue.lot_no} • ` : ''}
                                         {issue.Year && `Năm ${issue.Year.year}`}

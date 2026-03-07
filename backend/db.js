@@ -72,6 +72,10 @@ const Issue = sequelize.define('Issue', {
   material_category_id: {
     type: DataTypes.INTEGER,
     allowNull: true
+  },
+  image_url: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
 }, { tableName: 'issues', timestamps: false });
 
