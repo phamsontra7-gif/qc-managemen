@@ -224,8 +224,9 @@ app.post('/api/issues', authenticate, async (req, res) => {
         const issue = await Issue.create(req.body);
         res.status(201).json(issue);
     } catch (error) {
+        console.error('SERVER ERROR IN POST /api/issues:', error);
         if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
-            const messages = error.errors.map(err => err.message);
+            const messages = error.errors.map(err => `${err.path}: ${err.message}`);
             return res.status(400).json({ error: messages.join(', ') });
         }
         res.status(400).json({ error: error.message });

@@ -42,7 +42,7 @@ const MaterialCategory = sequelize.define('MaterialCategory', {
 const Issue = sequelize.define('Issue', {
   issue_code: { type: DataTypes.STRING, unique: true },
   product_type: {
-    type: DataTypes.ENUM('Nguyên Vật Liệu/Raw Material', 'Repacking', 'Thành phẩm/Products', 'Khác/Other'),
+    type: DataTypes.STRING,
     allowNull: true
   },
   product_name: DataTypes.STRING,
@@ -58,7 +58,7 @@ const Issue = sequelize.define('Issue', {
   detected_date: DataTypes.DATEONLY,
   resolution_direction: DataTypes.TEXT,
   status: {
-    type: DataTypes.ENUM('NEW', 'PENDING', 'DONE'),
+    type: DataTypes.STRING,
     defaultValue: 'NEW'
   },
   last_updated: {
