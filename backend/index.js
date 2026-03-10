@@ -8,7 +8,15 @@ const multer = require('multer');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
+const cloudinary = require('cloudinary').v2;
 require('./cron'); // Initialize cron jobs
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -27,7 +35,6 @@ app.use((req, res, next) => {
 
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 io.on('connection', (socket) => {
     console.log(`🔌 Client connected via socket: ${socket.id}`);
@@ -37,17 +44,22 @@ io.on('connection', (socket) => {
     });
 });
 
-// Configure Multer for image uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
-const upload = multer({ storage: storage });
+// Configure Multer - use memory storage, upload to Cloudinary
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Helper: upload buffer to Cloudinary
+const uploadToCloudinary = (buffer, mimetype) => {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { folder: 'qc-management', resource_type: 'image' },
+            (error, result) => {
+                if (error) reject(error);
+                else resolve(result);
+            }
+        );
+        stream.end(buffer);
+    });
+};
 
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
@@ -75,13 +87,18 @@ const isAdmin = (req, res, next) => {
     }
 };
 
-// Upload endpoint
-app.post('/api/upload', authenticate, upload.single('image'), (req, res) => {
+// Upload endpoint - Cloudinary
+app.post('/api/upload', authenticate, upload.single('image'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
-    const imageUrl = `/uploads/${req.file.filename}`;
-    res.json({ imageUrl });
+    try {
+        const result = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
+        res.json({ imageUrl: result.secure_url });
+    } catch (error) {
+        console.error('Cloudinary upload error:', error);
+        res.status(500).json({ error: 'Failed to upload image to cloud' });
+    }
 });
 
 
@@ -328,7 +345,13 @@ app.put('/api/issues/:id', authenticate, upload.single('image'), async (req, res
         });
 
         if (req.file) {
-            bodyContent.image_url = `/uploads/${req.file.filename}`;
+            try {
+                const result = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
+                bodyContent.image_url = result.secure_url;
+            } catch (uploadError) {
+                console.error('Cloudinary upload error in PUT:', uploadError);
+                return res.status(500).json({ error: 'Failed to upload image' });
+            }
         }
 
         await issue.update(bodyContent);
