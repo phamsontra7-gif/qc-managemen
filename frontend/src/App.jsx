@@ -17,6 +17,13 @@ const formatDate = (dateString) => {
     return `${dd}/${mm}/${yyyy}`;
 };
 
+// Helper: trả về URL ảnh đúng (Cloudinary hoặc local)
+const getImageSrc = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `${API_BASE_URL}${url}`;
+};
+
 function App() {
     const [view, setView] = useState('dashboard');
     const [issues, setIssues] = useState([]);
@@ -721,7 +728,7 @@ function App() {
                                         {(imagePreview || formData.image_url) && (
                                             <div className="relative group">
                                                 <img
-                                                    src={imagePreview || `${API_BASE_URL}${formData.image_url}`}
+                                                    src={imagePreview || getImageSrc(formData.image_url)}
                                                     alt="Preview"
                                                     className="w-32 h-32 rounded-[2rem] object-cover border-2 border-blue-500 shadow-lg shadow-blue-100"
                                                 />
@@ -887,7 +894,7 @@ function App() {
                                         </p>
                                         <div className="rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl">
                                             <img
-                                                src={`${API_BASE_URL}${selectedIssue.image_url}`}
+                                                src={getImageSrc(selectedIssue.image_url)}
                                                 alt="Issue evidence"
                                                 className="w-full h-auto object-cover hover:scale-105 transition-transform duration-700 cursor-zoom-in"
                                             />
