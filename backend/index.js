@@ -6,12 +6,36 @@ const { Sequelize, DataTypes, Op } = require('sequelize');
 const { sequelize, Issue, MaterialCategory, Year, User } = require('./db');
 const multer = require('multer');
 const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
 require('./cron'); // Initialize cron jobs
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: '*', // Adjust matching your frontend's origin
+        methods: ['GET', 'POST', 'PUT', 'DELETE']
+    }
+});
+
+// Middleware to inject `io` into `req`
+app.use((req, res, next) => {
+    req.io = io;
+    next();
+});
+
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+io.on('connection', (socket) => {
+    console.log(`🔌 Client connected via socket: ${socket.id}`);
+
+    socket.on('disconnect', () => {
+        console.log(`🔌 Client disconnected: ${socket.id}`);
+    });
+});
 
 // Configure Multer for image uploads
 const storage = multer.diskStorage({
@@ -24,15 +48,6 @@ const storage = multer.diskStorage({
     }
 });
 const upload = multer({ storage: storage });
-
-// Upload endpoint
-app.post('/api/upload', authenticate, upload.single('image'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-    }
-    const imageUrl = `/uploads/${req.file.filename}`;
-    res.json({ imageUrl });
-});
 
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
@@ -50,6 +65,26 @@ const authenticate = (req, res, next) => {
         res.status(401).json({ error: 'Invalid or expired token.' });
     }
 };
+
+// Middleware: Check if Admin
+const isAdmin = (req, res, next) => {
+    if (req.user && req.user.role === 'ADMIN') {
+        next();
+    } else {
+        res.status(403).json({ error: 'Access denied. Admin rights required.' });
+    }
+};
+
+// Upload endpoint
+app.post('/api/upload', authenticate, upload.single('image'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const imageUrl = `/uploads/${req.file.filename}`;
+    res.json({ imageUrl });
+});
+
+
 
 // --- AUTH ROUTES ---
 app.post('/api/auth/register', async (req, res) => {
@@ -87,14 +122,7 @@ app.get('/api/auth/me', authenticate, async (req, res) => {
     res.json(req.user);
 });
 
-// Middleware: Check if Admin
-const isAdmin = (req, res, next) => {
-    if (req.user && req.user.role === 'ADMIN') {
-        next();
-    } else {
-        res.status(403).json({ error: 'Access denied. Admin rights required.' });
-    }
-};
+
 
 // --- USER MANAGEMENT ROUTES ---
 app.get('/api/users', authenticate, isAdmin, async (req, res) => {
@@ -176,6 +204,7 @@ app.get('/api/issues', authenticate, async (req, res) => {
 });
 
 app.post('/api/issues', authenticate, async (req, res) => {
+    console.log('--- [ISSUES POST] Received request ---');
     try {
         // 1. Sanitize the body: trim all strings and convert empty to null
         const bodyContent = { ...req.body };
@@ -187,6 +216,7 @@ app.post('/api/issues', authenticate, async (req, res) => {
         });
 
         const { product_type, detected_date } = bodyContent;
+        console.log('Request Data:', JSON.stringify({ product_type, detected_date, issue_code: bodyContent.issue_code }));
 
         // 2. Automated issue_code generation (e.g., aa-xxyyzz-tt)
         if (!bodyContent.issue_code) {
@@ -238,29 +268,86 @@ app.post('/api/issues', authenticate, async (req, res) => {
                     }
                 }
 
-                const tt = String(nextNumber).padStart(2, '0');
-                bodyContent.issue_code = `${basePattern}${tt}`;
-                console.log('Automated Code Generated:', bodyContent.issue_code);
+                const ttValue = String(nextNumber).padStart(2, '0');
+                bodyContent.issue_code = `${basePattern}${ttValue}`;
+                console.log('Generated code:', bodyContent.issue_code);
             } catch (genErr) {
-                console.error('Error generating issue_code:', genErr.message);
+                console.error('Code gen error:', genErr.message);
                 bodyContent.issue_code = null;
             }
         }
 
         const issue = await Issue.create(bodyContent);
-        res.status(201).json(issue);
+
+        // Fetch it back with relations to emit full data
+        const newIssue = await Issue.findOne({
+            where: { id: issue.id },
+            include: [
+                { model: MaterialCategory, include: [Year] },
+                { model: Year }
+            ]
+        });
+
+        // Emit socket event
+        req.io.emit('issue_created', newIssue);
+
+        console.log('Success! Saved with ID:', issue.id);
+        res.status(201).json(newIssue);
     } catch (error) {
-        console.error('CRITICAL SERVER ERROR:', error);
+        console.error('--- [ISSUES POST ERROR] ---');
+        console.error(error);
 
         let details = error.message;
-        if (error.errors) {
+        if (error.errors && Array.isArray(error.errors)) {
             details = error.errors.map(e => `${e.path || 'unknown'}: ${e.message}`).join(' | ');
         }
 
         res.status(400).json({
-            error: `Lỗi chi tiết từ DB: ${details}`,
-            fullError: error.name
+            error: `Lỗi chi tiết từ DB: ${details || 'Lỗi không xác định'}`,
+            fullError: error.name,
+            originalError: error.message
         });
+    }
+});
+
+app.put('/api/issues/:id', authenticate, upload.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const issue = await Issue.findByPk(id);
+
+        if (!issue) {
+            return res.status(404).json({ error: 'Sự cố không tồn tại' });
+        }
+
+        const bodyContent = { ...req.body };
+        Object.keys(bodyContent).forEach(key => {
+            if (typeof bodyContent[key] === 'string') {
+                bodyContent[key] = bodyContent[key].trim();
+                if (bodyContent[key] === '') bodyContent[key] = null;
+            }
+        });
+
+        if (req.file) {
+            bodyContent.image_url = `/uploads/${req.file.filename}`;
+        }
+
+        await issue.update(bodyContent);
+
+        const updatedIssue = await Issue.findOne({
+            where: { id },
+            include: [
+                { model: MaterialCategory, include: [Year] },
+                { model: Year }
+            ]
+        });
+
+        // Emit socket event
+        req.io.emit('issue_updated', updatedIssue);
+
+        res.json(updatedIssue);
+    } catch (error) {
+        console.error('--- [ISSUES PUT ERROR] ---', error);
+        res.status(500).json({ error: error.message || 'Lỗi hệ thống khi cập nhật' });
     }
 });
 
@@ -324,7 +411,7 @@ app.post('/api/seed', async (req, res) => {
     }
 });
 
-app.listen(PORT, '0.0.0.0', async () => {
+server.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 Server is running on port ${PORT}`);
 
     try {

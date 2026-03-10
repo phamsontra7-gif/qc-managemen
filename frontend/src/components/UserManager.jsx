@@ -88,14 +88,14 @@ const UserManager = () => {
             <header className="flex justify-between items-center bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
                 <div className="space-y-1">
                     <h2 className="text-3xl font-black text-slate-900 tracking-tight">Quản Lý <span className="text-blue-600">Người Dùng</span></h2>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Hệ thống phân quyền truy cập</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Phân quyền / Access Control</p>
                 </div>
                 <button
                     onClick={() => setShowAddModal(true)}
                     className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 transform hover:-translate-y-1 active:scale-95"
                 >
                     <UserPlus size={20} />
-                    Thêm tài khoản
+                    Thêm tài khoản / Add User
                 </button>
             </header>
 
@@ -103,10 +103,10 @@ const UserManager = () => {
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-100">
-                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Họ tên & Tài khoản</th>
-                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vai trò</th>
-                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày tạo</th>
-                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Thao tác</th>
+                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Họ & Tên / Name</th>
+                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vai trò / Role</th>
+                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày tạo / Created</th>
+                            <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Thao tác / Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -157,7 +157,7 @@ const UserManager = () => {
                                     <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg">
                                         <UserPlus size={24} strokeWidth={3} />
                                     </div>
-                                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">Thêm tài khoản mới</h3>
+                                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">Thêm mới / Add New User</h3>
                                 </div>
                                 <button type="button" onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-900">
                                     <X size={24} />
@@ -166,7 +166,7 @@ const UserManager = () => {
 
                             <div className="p-10 space-y-6">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Họ và tên</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Họ & Tên / Full Name</label>
                                     <input
                                         required
                                         name="full_name"
@@ -178,7 +178,7 @@ const UserManager = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Tên tài khoản</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Tên thẻ / Username</label>
                                         <input
                                             required
                                             name="username"
@@ -189,7 +189,7 @@ const UserManager = () => {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Mật khẩu</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Mật khẩu / Password</label>
                                         <input
                                             required
                                             type="password"
@@ -202,7 +202,7 @@ const UserManager = () => {
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Vai trò hệ thống</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Vai trò / Role</label>
                                     <div className="flex gap-4">
                                         {['USER', 'ADMIN'].map(r => (
                                             <label key={r} className="flex-1 cursor-pointer">
@@ -215,7 +215,7 @@ const UserManager = () => {
                                                     onChange={handleInputChange}
                                                 />
                                                 <div className="py-4 border-2 border-slate-100 rounded-2xl text-center font-black text-xs peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-600 transition-all">
-                                                    {r === 'ADMIN' ? 'Quản trị viên' : 'Nhân viên'}
+                                                    {r === 'ADMIN' ? 'Quản trị / Admin' : 'Nhân viên / User'}
                                                 </div>
                                             </label>
                                         ))}
@@ -228,7 +228,7 @@ const UserManager = () => {
                                     type="submit"
                                     className="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all"
                                 >
-                                    Khởi tạo tài khoản
+                                    Tạo mới / Create User
                                 </button>
                             </div>
                         </form>

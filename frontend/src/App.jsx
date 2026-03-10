@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import IssueList from './components/IssueList';
-import { Plus, X, AlertCircle, CheckCircle2, Clock, Calendar, ShieldCheck, Layers, ChevronRight, ChevronDown, LogOut, User as UserIcon, Users as UsersIcon, LayoutGrid, Camera, Image as ImageIcon } from 'lucide-react';
+import { Plus, X, AlertCircle, CheckCircle2, Clock, Calendar, ShieldCheck, Layers, ChevronRight, ChevronDown, LogOut, User as UserIcon, Users as UsersIcon, LayoutGrid, Camera, Image as ImageIcon, Bell } from 'lucide-react';
 import Login from './components/Login';
 import UserManager from './components/UserManager';
 import API_BASE_URL from './config';
+import { io } from 'socket.io-client';
 
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -27,9 +28,22 @@ function App() {
     const [imagePreview, setImagePreview] = useState(null);
     const [selectedYear, setSelectedYear] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [selectedStatus, setSelectedStatus] = useState('ALL');
+    const [notifications, setNotifications] = useState([]);
+    const [notificationHistory, setNotificationHistory] = useState([]);
+    const [showNotifDropdown, setShowNotifDropdown] = useState(false);
     const [user, setUser] = useState(() => {
-        const savedUser = localStorage.getItem('user');
-        return savedUser ? JSON.parse(savedUser) : null;
+        try {
+            const savedUser = localStorage.getItem('user');
+            if (savedUser && savedUser !== 'undefined') {
+                return JSON.parse(savedUser);
+            }
+        } catch (e) {
+            console.error('Lỗi khi đọc dữ liệu người dùng:', e);
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+        }
+        return null;
     });
 
     const [formData, setFormData] = useState({
@@ -94,6 +108,48 @@ function App() {
     useEffect(() => {
         fetchData(selectedYear, selectedCategory);
     }, [selectedYear, selectedCategory, user]);
+
+    // Socket Setup
+    useEffect(() => {
+        let socket;
+        if (user) {
+            socket = io(API_BASE_URL);
+
+            socket.on('issue_created', (newIssue) => {
+                const msg = `Báo cáo mới được tạo: ${newIssue.issue_code || newIssue.product_name}`;
+                showNotification(msg, 'info');
+                setNotificationHistory(prev => [{ id: Date.now(), message: msg, type: 'info', issue: newIssue, read: false }, ...prev]);
+
+                setIssues(prevIssues => {
+                    const exists = prevIssues.find(i => i.id === newIssue.id);
+                    if (exists) return prevIssues;
+                    return [newIssue, ...prevIssues];
+                });
+            });
+
+            socket.on('issue_updated', (updatedIssue) => {
+                const msg = `Sự cố ${updatedIssue.issue_code || updatedIssue.product_name} vừa được cập nhật`;
+                showNotification(msg, 'success');
+                setNotificationHistory(prev => [{ id: Date.now(), message: msg, type: 'success', issue: updatedIssue, read: false }, ...prev]);
+
+                setIssues(prevIssues => {
+                    return prevIssues.map(i => i.id === updatedIssue.id ? updatedIssue : i);
+                });
+            });
+        }
+
+        return () => {
+            if (socket) socket.disconnect();
+        };
+    }, [user]);
+
+    const showNotification = (message, type = 'info') => {
+        const id = Date.now();
+        setNotifications(prev => [...prev, { id, message, type }]);
+        setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== id));
+        }, 5000);
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -161,8 +217,13 @@ function App() {
                 quantity: formData.quantity ? parseFloat(formData.quantity) : null
             };
 
-            const response = await fetch(`${API_BASE_URL}/api/issues`, {
-                method: 'POST',
+            const isUpdating = !!formData.id;
+            const targetUrl = isUpdating
+                ? `${API_BASE_URL}/api/issues/${formData.id}`
+                : `${API_BASE_URL}/api/issues`;
+
+            const response = await fetch(targetUrl, {
+                method: isUpdating ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     ...getAuthHeader()
@@ -174,6 +235,7 @@ function App() {
                 // ... same success code
                 setShowModal(false);
                 setFormData({
+                    id: null,
                     product_name: '',
                     product_type: '',
                     defect_description: '',
@@ -215,18 +277,16 @@ function App() {
             {/* Sidebar */}
             <aside className="w-80 bg-white border-r border-slate-200 hidden lg:flex flex-col sticky top-0 h-screen shadow-2xl z-20 overflow-hidden">
                 <div className="p-8 border-b border-slate-100 bg-gradient-to-br from-white to-slate-50">
-                    <div className="flex items-center gap-3 text-blue-600 mb-2">
-                        <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-200">
-                            <Layers size={24} strokeWidth={2.5} />
-                        </div>
-                        <span className="font-black text-xl tracking-tighter uppercase">QC Dashboard</span>
+                    <div className="flex items-center gap-4 mb-4">
+                        <img src="/fusion_logo.png" alt="Fusion Group" className="h-10 object-contain drop-shadow-sm" />
+                        <span className="font-black text-lg tracking-tighter uppercase text-slate-800 border-l-2 border-slate-200 pl-4">QC Dashboard</span>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Hệ thống quản lý dữ liệu</p>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Quản lý dữ liệu / Data Management</p>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-5 space-y-3 custom-scrollbar">
                     <div className="pb-2 px-5">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Hệ thống</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Hệ thống / System</p>
                     </div>
 
                     <button
@@ -234,7 +294,7 @@ function App() {
                         className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 group ${view === 'dashboard' ? 'bg-blue-600 text-white shadow-xl shadow-blue-200' : 'text-slate-600 hover:bg-slate-100'}`}
                     >
                         <LayoutGrid size={20} className={view === 'dashboard' ? '' : 'text-slate-400 group-hover:text-blue-500'} />
-                        Tổng quan báo cáo
+                        Tổng quan / Dashboard
                     </button>
 
                     {user.role === 'ADMIN' && (
@@ -243,14 +303,14 @@ function App() {
                             className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 group ${view === 'users' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200' : 'text-slate-600 hover:bg-slate-100'}`}
                         >
                             <UsersIcon size={20} className={view === 'users' ? '' : 'text-slate-400 group-hover:text-indigo-500'} />
-                            Quản lý tài khoản
+                            Tài khoản / Users
                         </button>
                     )}
 
                     {view === 'dashboard' && (
                         <>
                             <div className="pt-6 pb-2 px-5">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Lưu trữ theo năm</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Theo năm / By Year</p>
                             </div>
 
                             <button
@@ -258,7 +318,7 @@ function App() {
                                 className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 group ${selectedYear === null ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' : 'text-slate-500 hover:bg-slate-50'}`}
                             >
                                 <LayoutGrid size={18} className={selectedYear === null ? 'text-blue-400' : 'text-slate-400 group-hover:text-blue-500'} />
-                                <span>Tất cả</span>
+                                <span>Tất cả / All Years</span>
                             </button>
 
                             {years.map(y => (
@@ -290,7 +350,7 @@ function App() {
                         className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl font-black text-xs text-rose-500 hover:bg-rose-50 transition-all duration-300 border-2 border-transparent hover:border-rose-100 uppercase tracking-[0.2em]"
                     >
                         <LogOut size={16} strokeWidth={3} />
-                        Đăng xuất
+                        Đăng xuất / Logout
                     </button>
                 </div>
             </aside>
@@ -316,33 +376,110 @@ function App() {
                                         )}
                                     </div>
                                     <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">
-                                        Quản Lý <span className="text-blue-600">Sự Cố</span> QC
+                                        Issue <span className="text-blue-600">Management</span>
                                     </h1>
                                 </div>
-                                <button
-                                    onClick={() => setShowModal(true)}
-                                    className="group bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 shadow-2xl shadow-blue-200 transition-all duration-300 flex items-center gap-3 transform hover:-translate-y-1 active:scale-95"
-                                >
-                                    <Plus size={22} strokeWidth={3} />
-                                    Báo cáo mới
-                                </button>
+
+                                <div className="flex items-center gap-4 relative">
+                                    <button
+                                        onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                                        className="relative bg-white p-4 rounded-2xl shadow-sm text-slate-500 hover:text-blue-600 transition-all duration-300"
+                                    >
+                                        <Bell size={24} strokeWidth={2.5} />
+                                        {notificationHistory.some(n => !n.read) && (
+                                            <span className="absolute top-3 right-3 w-3 h-3 bg-rose-500 rounded-full animate-pulse border-2 border-white"></span>
+                                        )}
+                                    </button>
+
+                                    {showNotifDropdown && (
+                                        <div className="absolute top-16 right-0 w-80 bg-white border border-slate-100 shadow-2xl rounded-3xl z-40 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
+                                            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                                                <span className="font-black text-sm uppercase tracking-wider text-slate-800">Thông báo / Alerts</span>
+                                                <button
+                                                    onClick={() => setNotificationHistory(prev => prev.map(n => ({ ...n, read: true })))}
+                                                    className="text-[10px] font-bold text-blue-600 uppercase tracking-wider hover:underline"
+                                                >
+                                                    Đọc tất cả
+                                                </button>
+                                            </div>
+                                            <div className="max-h-96 overflow-y-auto w-full custom-scrollbar-minimal">
+                                                {notificationHistory.length > 0 ? (
+                                                    notificationHistory.map(notif => (
+                                                        <div
+                                                            key={notif.id}
+                                                            onClick={() => {
+                                                                setNotificationHistory(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+                                                                setSelectedIssue(notif.issue);
+                                                                setShowNotifDropdown(false);
+                                                            }}
+                                                            className={`p-4 border-b border-slate-50 cursor-pointer hover:bg-slate-50 transition-colors flex gap-3 ${notif.read ? 'opacity-60' : 'bg-blue-50/20'}`}
+                                                        >
+                                                            <div className={`p-2 rounded-xl h-fit ${notif.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                                <Bell size={16} strokeWidth={3} />
+                                                            </div>
+                                                            <div className="flex-1 mt-1 text-left">
+                                                                <p className="text-xs font-bold text-slate-700 leading-snug break-words">{notif.message}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="p-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                                        Chưa có thông báo / No Alerts
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <button
+                                        onClick={() => {
+                                            setFormData({
+                                                id: null,
+                                                product_name: '',
+                                                product_type: '',
+                                                defect_description: '',
+                                                quantity: '',
+                                                unit: 'kg',
+                                                status: 'NEW',
+                                                issue_code: '',
+                                                lot_no: '',
+                                                year_id: '',
+                                                material_category_id: '',
+                                                resolution_direction: '',
+                                                received_date: new Date().toISOString().split('T')[0],
+                                                detected_date: new Date().toISOString().split('T')[0],
+                                                image_url: ''
+                                            });
+                                            setShowModal(true);
+                                        }}
+                                        className="group bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 shadow-2xl shadow-blue-200 transition-all duration-300 flex items-center gap-3 transform hover:-translate-y-1 active:scale-95"
+                                    >
+                                        <Plus size={22} strokeWidth={3} />
+                                        Báo cáo mới
+                                    </button>
+                                </div>
                             </header>
 
                             {/* Stats */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
                                 {[
-                                    { label: 'Sự cố', value: stats.total, color: 'blue', icon: Clock },
-                                    { label: 'Mới', value: stats.new, color: 'rose', icon: AlertCircle },
-                                    { label: 'Đang xử lý', value: stats.pending, color: 'amber', icon: Clock },
-                                    { label: 'Hoàn thành', value: stats.done, color: 'emerald', icon: CheckCircle2 },
+                                    { id: 'ALL', label: 'Sự cố / Total', value: stats.total, color: 'blue', icon: Clock },
+                                    { id: 'NEW', label: 'Mới / New', value: stats.new, color: 'rose', icon: AlertCircle },
+                                    { id: 'PENDING', label: 'Xử lý / Pending', value: stats.pending, color: 'amber', icon: Clock },
+                                    { id: 'DONE', label: 'K.Thúc / Done', value: stats.done, color: 'emerald', icon: CheckCircle2 },
                                 ].map((stat, idx) => (
-                                    <div key={idx} className={`bg-white p-7 rounded-[2.5rem] shadow-sm border-b-8 border-${stat.color}-500 transition-all duration-500 hover:shadow-2xl hover:shadow-${stat.color}-100 hover:-translate-y-2 group`}>
+                                    <div
+                                        key={idx}
+                                        onClick={() => setSelectedStatus(stat.id)}
+                                        className={`bg-white p-7 rounded-[2.5rem] shadow-sm transition-all duration-500 hover:shadow-2xl hover:shadow-${stat.color}-100 hover:-translate-y-2 group cursor-pointer 
+                                            ${selectedStatus === stat.id ? `border-b-8 border-${stat.color}-500 ring-4 ring-${stat.color}-50` : 'border-b-8 border-transparent'}`}
+                                    >
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover:text-slate-500 transition-colors">{stat.label}</p>
                                                 <h3 className="text-4xl font-black text-slate-900 tracking-tighter">{stat.value}</h3>
                                             </div>
-                                            <div className={`bg-${stat.color}-50 p-4 rounded-3xl text-${stat.color}-600 group-hover:bg-${stat.color}-500 group-hover:text-white transition-all duration-500`}>
+                                            <div className={`${selectedStatus === stat.id ? `bg-${stat.color}-500 text-white` : `bg-${stat.color}-50 text-${stat.color}-600`} p-4 rounded-3xl group-hover:bg-${stat.color}-500 group-hover:text-white transition-all duration-500`}>
                                                 <stat.icon size={28} strokeWidth={2.5} />
                                             </div>
                                         </div>
@@ -359,7 +496,7 @@ function App() {
                             ) : (
                                 <div className="animate-in fade-in duration-700">
                                     <IssueList
-                                        issues={issues}
+                                        issues={issues.filter(issue => selectedStatus === 'ALL' || issue.status === selectedStatus)}
                                         onSelectIssue={(issue) => setSelectedIssue(issue)}
                                     />
                                 </div>
@@ -382,8 +519,10 @@ function App() {
                                         <Plus size={24} strokeWidth={3} />
                                     </div>
                                     <div>
-                                        <h2 className="text-2xl font-black text-slate-800 tracking-tight">Cập nhật báo cáo QC mới</h2>
-                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Thông tin chi tiết sự cố</p>
+                                        <h2 className="text-3xl font-black text-slate-800 tracking-tight">
+                                            {formData.id ? 'Cập nhật sự cố / Update Issue' : 'Báo cáo sự cố / New Issue'}
+                                        </h2>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Chi tiết sự cố / Issue Details</p>
                                     </div>
                                 </div>
                                 <button type="button" onClick={() => setShowModal(false)} className="p-3 hover:bg-white hover:shadow-md rounded-full transition-all text-slate-400 hover:text-slate-900">
@@ -395,7 +534,7 @@ function App() {
                                 {/* Năm lưu trữ & Phân loại sản phẩm */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Năm lưu trữ *</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Năm lưu trữ / Storage Year *</label>
                                         <select
                                             required
                                             name="year_id"
@@ -410,7 +549,7 @@ function App() {
                                         </select>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Phân loại sản phẩm *</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Phân loại / Product Type *</label>
                                         <select
                                             required
                                             name="product_type"
@@ -429,19 +568,32 @@ function App() {
 
                                 {/* Thời gian & Mã định danh */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Thời gian phát hiện *</label>
-                                        <input
-                                            required
-                                            name="detected_date"
-                                            type="date"
-                                            className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-slate-50 font-bold cursor-pointer"
-                                            value={formData.detected_date}
-                                            onChange={handleInputChange}
-                                        />
+                                    <div className="space-y-2 relative">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">T.Gian phát hiện / Detected Date *</label>
+                                        <div className="relative group">
+                                            <input
+                                                required
+                                                name="detected_date"
+                                                type="date"
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                value={formData.detected_date}
+                                                onChange={handleInputChange}
+                                                onClick={(e) => {
+                                                    try {
+                                                        if (e.target.showPicker) e.target.showPicker();
+                                                    } catch (err) {
+                                                        console.log("showPicker format error");
+                                                    }
+                                                }}
+                                            />
+                                            <div className="flex items-center justify-between w-full px-6 py-4 rounded-3xl border-2 border-slate-100 group-hover:border-blue-500 bg-slate-50 font-black text-slate-800 transition-colors pointer-events-none text-lg">
+                                                <span>{formData.detected_date ? formatDate(formData.detected_date) : 'DD/MM/YYYY'}</span>
+                                                <Calendar size={20} className="text-slate-600" />
+                                            </div>
+                                        </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Mã định danh</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Mã định danh / Issue Code</label>
                                         <input
                                             name="issue_code"
                                             type="text"
@@ -457,7 +609,7 @@ function App() {
 
                                 {/* Tên sản phẩm */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Tên sản phẩm *</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Tên sản phẩm / Product Name *</label>
                                     <input
                                         required
                                         name="product_name"
@@ -472,7 +624,7 @@ function App() {
 
                                 {/* Mô tả lỗi */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Mô tả lỗi *</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Mô tả lỗi / Defect Description *</label>
                                     <textarea
                                         required
                                         name="defect_description"
@@ -488,7 +640,7 @@ function App() {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">
-                                            <span>Số lượng</span>
+                                            <span>Số lượng / Quantity</span>
                                         </label>
                                         <input
                                             name="quantity"
@@ -502,7 +654,7 @@ function App() {
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">
-                                            <span>Đơn vị</span>
+                                            <span>Đơn vị / Unit</span>
                                         </label>
                                         <select
                                             name="unit"
@@ -517,7 +669,7 @@ function App() {
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 flex items-center gap-2">
-                                            <span>Số Lot</span>
+                                            <span>Số Lot / Lot No</span>
                                         </label>
                                         <input
                                             name="lot_no"
@@ -533,7 +685,7 @@ function App() {
 
                                 {/* Hướng xử lý */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Hướng xử lý</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Hướng xử lý / Resolution</label>
                                     <textarea
                                         name="resolution_direction"
                                         className="w-full px-6 py-4 rounded-3xl border-2 border-slate-100 focus:border-emerald-500 outline-none bg-slate-50 font-bold min-h-[80px] resize-none"
@@ -545,7 +697,7 @@ function App() {
 
                                 {/* Đính kèm ảnh */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Đính kèm ảnh hiện trường</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Đính kèm ảnh / Attached Image</label>
                                     <div className="flex items-center gap-6">
                                         <label className="cursor-pointer group">
                                             <input
@@ -566,10 +718,10 @@ function App() {
                                             </div>
                                         </label>
 
-                                        {imagePreview && (
+                                        {(imagePreview || formData.image_url) && (
                                             <div className="relative group">
                                                 <img
-                                                    src={imagePreview}
+                                                    src={imagePreview || `${API_BASE_URL}${formData.image_url}`}
                                                     alt="Preview"
                                                     className="w-32 h-32 rounded-[2rem] object-cover border-2 border-blue-500 shadow-lg shadow-blue-100"
                                                 />
@@ -578,6 +730,7 @@ function App() {
                                                     onClick={() => {
                                                         setSelectedFile(null);
                                                         setImagePreview(null);
+                                                        setFormData(prev => ({ ...prev, image_url: '' }));
                                                     }}
                                                     className="absolute -top-2 -right-2 bg-rose-500 text-white p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
                                                 >
@@ -598,7 +751,7 @@ function App() {
 
                                 {/* Trạng thái xử lý */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Trạng thái xử lý</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Trạng thái / Status</label>
                                     <div className="flex flex-wrap gap-4 pt-2">
                                         {[
                                             { id: 'NEW', label: 'mới (new)', color: 'rose' },
@@ -632,13 +785,13 @@ function App() {
                                     onClick={() => setShowModal(false)}
                                     className="flex-1 px-8 py-5 rounded-[2rem] font-black text-slate-500 hover:text-slate-900 transition-all text-sm uppercase tracking-widest"
                                 >
-                                    Đóng
+                                    Đóng / Close
                                 </button>
                                 <button
                                     type="submit"
                                     className="flex-[2] bg-blue-600 text-white px-10 py-5 rounded-[2rem] font-black hover:bg-blue-700 shadow-2xl shadow-blue-200 transition-all transform hover:-translate-y-1 active:scale-95 text-sm uppercase tracking-[0.2em]"
                                 >
-                                    Lưu báo cáo hệ thống
+                                    Lưu báo cáo / Save Report
                                 </button>
                             </div>
                         </form>
@@ -655,7 +808,7 @@ function App() {
                                     <ShieldCheck size={24} strokeWidth={3} />
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Chi tiết sự cố</h2>
+                                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Chi tiết sự cố / Issue Details</h2>
                                     <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mt-1">{selectedIssue.issue_code}</p>
                                 </div>
                             </div>
@@ -668,19 +821,19 @@ function App() {
                             {/* Header Info */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phân loại</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Loại / Type</p>
                                     <p className="font-bold text-slate-900">{selectedIssue.product_type || 'N/A'}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày phát hiện</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ngày / Date</p>
                                     <p className="font-bold text-slate-900">{formatDate(selectedIssue.detected_date)}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Số Lot</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Số Lot/Lot No</p>
                                     <p className="font-bold text-slate-900">{selectedIssue.lot_no || 'N/A'}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trạng thái</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">T.Thái/Status</p>
                                     <div className="pt-1">
                                         <div className={`w-fit px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider 
                                             ${selectedIssue.status === 'NEW' ? 'bg-rose-100 text-rose-700' :
@@ -695,28 +848,28 @@ function App() {
                             {/* Main Content */}
                             <div className="space-y-6">
                                 <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tên sản phẩm</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tên sản phẩm / Product Name</p>
                                     <p className="text-xl font-black text-slate-900">{selectedIssue.product_name}</p>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Mô tả lỗi</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Mô tả lỗi / Defect</p>
                                         <div className="bg-rose-50/50 p-6 rounded-3xl border-2 border-rose-100 text-slate-700 font-bold leading-relaxed">
                                             {selectedIssue.defect_description}
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Hướng xử lý</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Hướng / Resolution</p>
                                         <div className="bg-emerald-50/50 p-6 rounded-3xl border-2 border-emerald-100 text-emerald-800 font-bold leading-relaxed">
-                                            {selectedIssue.resolution_direction || 'Chưa có hướng xử lý...'}
+                                            {selectedIssue.resolution_direction || 'Chưa / None...'}
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="bg-blue-50/50 p-6 rounded-3xl border-2 border-blue-100 flex items-center justify-between">
                                     <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Số lượng sự cố</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Số lượng / Qty</p>
                                         <p className="text-2xl font-black text-blue-600">
                                             {Number(selectedIssue.quantity || 0).toLocaleString()} <span className="text-sm font-bold text-blue-400 uppercase">{selectedIssue.unit}</span>
                                         </p>
@@ -730,7 +883,7 @@ function App() {
                                 {selectedIssue.image_url && (
                                     <div className="space-y-3">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                                            <ImageIcon size={14} /> Hình ảnh đính kèm
+                                            <ImageIcon size={14} /> Ảnh đính kèm / Attached Image
                                         </p>
                                         <div className="rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl">
                                             <img
@@ -744,17 +897,58 @@ function App() {
                             </div>
                         </div>
 
-                        <div className="p-8 bg-slate-50 border-t border-slate-100">
+                        <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
+                            <button
+                                onClick={() => {
+                                    setFormData({
+                                        ...selectedIssue,
+                                        year_id: selectedIssue.year_id || '',
+                                        material_category_id: selectedIssue.material_category_id || '',
+                                        detected_date: selectedIssue.detected_date ? selectedIssue.detected_date.split('T')[0] : '',
+                                        received_date: selectedIssue.received_date ? selectedIssue.received_date.split('T')[0] : ''
+                                    });
+                                    setSelectedIssue(null);
+                                    setShowModal(true);
+                                }}
+                                className="flex-1 bg-blue-600 text-white py-5 rounded-[2rem] font-black hover:bg-blue-700 transition-all text-sm uppercase tracking-[0.2em]"
+                            >
+                                Cập nhật / Update
+                            </button>
                             <button
                                 onClick={() => setSelectedIssue(null)}
-                                className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black hover:bg-slate-800 transition-all text-sm uppercase tracking-[0.2em]"
+                                className="flex-1 bg-slate-900 text-white py-5 rounded-[2rem] font-black hover:bg-slate-800 transition-all text-sm uppercase tracking-[0.2em]"
                             >
-                                Đóng chi tiết
+                                Đóng / Close
                             </button>
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Notifications Toast */}
+            <div className="fixed top-6 right-6 z-[60] flex flex-col gap-3 pointer-events-none">
+                {notifications.map(notif => (
+                    <div
+                        key={notif.id}
+                        className={`pointer-events-auto w-80 p-4 rounded-2xl shadow-2xl flex items-start gap-3 animate-in fade-in slide-in-from-right-8 duration-500
+                            ${notif.type === 'success' ? 'bg-emerald-600' : 'bg-blue-600'} text-white`}
+                    >
+                        <div className="bg-white/20 p-2 rounded-xl">
+                            <Bell size={20} strokeWidth={2.5} />
+                        </div>
+                        <div className="flex-1 mt-1">
+                            <p className="font-bold text-sm leading-snug">{notif.message}</p>
+                        </div>
+                        <button
+                            onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+                            className="bg-transparent hover:bg-white/20 p-1.5 rounded-full transition-colors"
+                        >
+                            <X size={14} strokeWidth={3} />
+                        </button>
+                    </div>
+                ))}
+            </div>
+
         </div>
     );
 }

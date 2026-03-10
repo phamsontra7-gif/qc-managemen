@@ -19,13 +19,13 @@ const IssueList = ({ issues, onSelectIssue }) => {
             <table className="min-w-full table-auto">
                 <thead>
                     <tr className="bg-slate-50/50 border-b border-slate-200">
-                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Loại SP</th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Mã định danh</th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Ngày phát hiện</th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Sản phẩm</th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Lỗi phát hiện</th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Số lượng</th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Trạng thái</th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Phân loại / Type</th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Mã / Code</th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Ngày / Date</th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Sản phẩm / Product</th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Lỗi / Defect</th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">SL / Qty</th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Thái / Status</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -33,8 +33,8 @@ const IssueList = ({ issues, onSelectIssue }) => {
                         <tr>
                             <td colSpan="7" className="px-6 py-12 text-center">
                                 <div className="flex flex-col items-center gap-2">
-                                    <p className="text-slate-400 font-medium">Chưa có dữ liệu sự cố</p>
-                                    <p className="text-slate-300 text-xs">Vui lòng nhấn "Báo cáo mới" để thêm</p>
+                                    <p className="text-slate-400 font-medium">Chưa có dữ liệu / No Data</p>
+                                    <p className="text-slate-300 text-xs">Vui lòng nhấn "Báo cáo mới" / Click "New Report" to add</p>
                                 </div>
                             </td>
                         </tr>

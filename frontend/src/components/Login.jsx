@@ -45,12 +45,12 @@ const Login = ({ onLogin }) => {
             <div className="w-full max-w-md p-8 relative z-10 animate-in fade-in zoom-in duration-500">
                 <div className="bg-white/[0.03] backdrop-blur-3xl p-10 rounded-[3rem] border border-white/10 shadow-2xl space-y-8">
                     {/* Header */}
-                    <div className="text-center space-y-4">
-                        <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 w-20 h-20 rounded-3xl mx-auto flex items-center justify-center shadow-2xl shadow-blue-500/20 transform -rotate-6 hover:rotate-0 transition-transform duration-500">
-                            <LogIn size={40} className="text-white" strokeWidth={2.5} />
+                    <div className="text-center space-y-6">
+                        <div className="bg-white p-5 rounded-[2rem] inline-block mx-auto shadow-2xl shadow-blue-500/10 transition-transform duration-500 hover:scale-105">
+                            <img src="/fusion_logo.png" alt="Fusion Group" className="h-10 object-contain" />
                         </div>
                         <div className="space-y-1">
-                            <h1 className="text-3xl font-black text-white tracking-tighter">Hệ Thống <span className="text-blue-500">QC</span></h1>
+                            <h1 className="text-3xl font-black text-white tracking-tighter">Issue <span className="text-blue-500">Management</span></h1>
                             <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em] inline-flex items-center gap-2">
                                 <CheckCircle2 size={10} className="text-emerald-500" />
                                 Secured Management Portal
@@ -69,7 +69,7 @@ const Login = ({ onLogin }) => {
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Tên tài khoản</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Tên thẻ / Username</label>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-600 group-focus-within:text-blue-500 transition-colors">
                                     <User size={18} />
@@ -86,7 +86,7 @@ const Login = ({ onLogin }) => {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Mật khẩu</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Mật khẩu / Password</label>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-600 group-focus-within:text-blue-500 transition-colors">
                                     <Lock size={18} />
@@ -110,11 +110,11 @@ const Login = ({ onLogin }) => {
                             {loading ? (
                                 <div className="flex items-center justify-center gap-3">
                                     <div className="w-5 h-5 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                    <span>Đang xác thực...</span>
+                                    <span>Đang xác thực / Authenticating...</span>
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center gap-2">
-                                    <span>Đăng Nhập Ngay</span>
+                                    <span>Đăng Nhập / Login</span>
                                 </div>
                             )}
                         </button>
