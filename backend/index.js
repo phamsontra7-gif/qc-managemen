@@ -245,51 +245,50 @@ app.post('/api/issues', authenticate, async (req, res) => {
                 else if (pt.includes('nguyên vật liệu') || pt.includes('raw')) aa = 'NL';
                 else if (pt.includes('repacking')) aa = 'RP';
 
-                // B. Determine date code (xxyyzz) from detected_date (YYYY-MM-DD -> DDMMYY)
-                let xxyyzz = '';
+                // B. Determine date components from detected_date (YYYY-MM-DD)
+                let dd = '', mm = '', yy = '';
                 if (detected_date && detected_date.includes('-')) {
-                    const [y4, mm, dd] = detected_date.split('-');
-                    if (y4 && mm && dd) {
-                        xxyyzz = `${dd}${mm}${y4.slice(-2)}`;
-                    }
-                }
-
-                // Fallback for date if parsing fails
-                if (!xxyyzz) {
+                    const [y4, month, day] = detected_date.split('-');
+                    dd = day;
+                    mm = month;
+                    yy = y4.slice(-2);
+                } else {
                     const today = new Date();
-                    const d = String(today.getDate()).padStart(2, '0');
-                    const m = String(today.getMonth() + 1).padStart(2, '0');
-                    const y = String(today.getFullYear()).slice(-2);
-                    xxyyzz = `${d}${m}${y}`;
+                    dd = String(today.getDate()).padStart(2, '0');
+                    mm = String(today.getMonth() + 1).padStart(2, '0');
+                    yy = String(today.getFullYear()).slice(-2);
                 }
 
-                const basePattern = `${aa}-${xxyyzz}-`;
+                const dateCode = `${dd}${mm}${yy}`;
+                const basePattern = `${aa}-${dateCode}-`;
+                const monthYearSearchPattern = `${aa}-%%${mm}${yy}-%`;
 
-                // C. Determine sequence (tt)
+                // C. Determine sequence (tt) based on MONTHLY count
                 const matchingIssues = await Issue.findAll({
                     where: {
-                        issue_code: { [Op.like]: `${basePattern}%` }
+                        issue_code: { [Op.like]: monthYearSearchPattern }
                     },
-                    attributes: ['issue_code'],
-                    order: [['issue_code', 'DESC']],
-                    limit: 1
+                    attributes: ['issue_code']
                 });
 
-                let nextNumber = 1;
-                if (matchingIssues.length > 0 && matchingIssues[0].issue_code) {
-                    const parts = matchingIssues[0].issue_code.split('-');
-                    const lastPart = parts[parts.length - 1];
-                    const lastNum = parseInt(lastPart);
-                    if (!isNaN(lastNum)) {
-                        nextNumber = lastNum + 1;
+                let highestTT = 0;
+                matchingIssues.forEach(m => {
+                    if (m.issue_code) {
+                        const parts = m.issue_code.split('-');
+                        const lastPart = parts[parts.length - 1];
+                        const lastNum = parseInt(lastPart);
+                        if (!isNaN(lastNum) && lastNum > highestTT) {
+                            highestTT = lastNum;
+                        }
                     }
-                }
+                });
 
+                let nextNumber = highestTT + 1;
                 const ttValue = String(nextNumber).padStart(2, '0');
                 bodyContent.issue_code = `${basePattern}${ttValue}`;
-                console.log('Generated code:', bodyContent.issue_code);
+                console.log('Generated monthly code:', bodyContent.issue_code);
             } catch (genErr) {
-                console.error('Code gen error:', genErr.message);
+                console.error('Monthly Code gen error:', genErr.message);
                 bodyContent.issue_code = null;
             }
         }
