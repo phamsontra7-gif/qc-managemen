@@ -174,6 +174,23 @@ app.delete('/api/users/:id', authenticate, isAdmin, async (req, res) => {
     }
 });
 
+app.put('/api/users/:id', authenticate, isAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { full_name, role, password } = req.body;
+        const updateData = { full_name, role };
+        if (password && password.trim() !== '') {
+            updateData.password = await bcrypt.hash(password, 10);
+        }
+        await User.update(updateData, { where: { id } });
+        const updated = await User.findOne({ where: { id }, attributes: { exclude: ['password'] } });
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 // --- DATA ROUTES (Protected) ---
 app.get('/api/years', authenticate, async (req, res) => {
     try {
