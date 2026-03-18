@@ -462,7 +462,10 @@ function App() {
                                         className="group bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 shadow-2xl shadow-blue-200 transition-all duration-300 flex items-center gap-3 transform hover:-translate-y-1 active:scale-95"
                                     >
                                         <Plus size={22} strokeWidth={3} />
-                                        Báo cáo mới
+                                        <span className="flex flex-col items-start leading-tight">
+                                            <span>Báo cáo mới</span>
+                                            <span className="text-[10px] font-bold opacity-75 tracking-widest uppercase">New Report</span>
+                                        </span>
                                     </button>
                                 </div>
                             </header>
