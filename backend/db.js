@@ -76,6 +76,14 @@ const Issue = sequelize.define('Issue', {
   image_url: {
     type: DataTypes.STRING,
     allowNull: true
+  },
+  expiry_date: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
+  },
+  warehouse_entry_date: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
   }
 }, { tableName: 'issues', timestamps: false });
 

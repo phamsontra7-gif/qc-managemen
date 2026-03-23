@@ -67,7 +67,9 @@ function App() {
         resolution_direction: '',
         received_date: new Date().toISOString().split('T')[0],
         detected_date: new Date().toISOString().split('T')[0],
-        image_url: ''
+        image_url: '',
+        expiry_date: '',
+        warehouse_entry_date: ''
     });
 
     const getAuthHeader = () => {
@@ -256,7 +258,9 @@ function App() {
                     resolution_direction: '',
                     received_date: new Date().toISOString().split('T')[0],
                     detected_date: new Date().toISOString().split('T')[0],
-                    image_url: ''
+                    image_url: '',
+                    expiry_date: '',
+                    warehouse_entry_date: ''
                 });
                 setSelectedFile(null);
                 setImagePreview(null);
@@ -455,7 +459,9 @@ function App() {
                                                 resolution_direction: '',
                                                 received_date: new Date().toISOString().split('T')[0],
                                                 detected_date: new Date().toISOString().split('T')[0],
-                                                image_url: ''
+                                                image_url: '',
+                                                expiry_date: '',
+                                                warehouse_entry_date: ''
                                             });
                                             setShowModal(true);
                                         }}
@@ -693,7 +699,45 @@ function App() {
                                     </div>
                                 </div>
 
-                                {/* Hướng xử lý */}
+                                {/* Hạn sử dụng & Ngày nhập kho */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2 relative">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Hạn sử dụng / Expiry Date</label>
+                                        <div className="relative group">
+                                            <input
+                                                name="expiry_date"
+                                                type="date"
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                value={formData.expiry_date}
+                                                onChange={handleInputChange}
+                                                onClick={(e) => { try { if (e.target.showPicker) e.target.showPicker(); } catch (err) {} }}
+                                            />
+                                            <div className="flex items-center justify-between w-full px-6 py-4 rounded-3xl border-2 border-slate-100 group-hover:border-amber-400 bg-slate-50 font-black text-slate-800 transition-colors pointer-events-none text-base">
+                                                <span className={formData.expiry_date ? 'text-slate-800' : 'text-slate-300'}>{formData.expiry_date ? formatDate(formData.expiry_date) : 'DD/MM/YYYY'}</span>
+                                                <Calendar size={18} className="text-amber-400" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2 relative">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Ngày nhập kho / Warehouse Entry Date</label>
+                                        <div className="relative group">
+                                            <input
+                                                name="warehouse_entry_date"
+                                                type="date"
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                value={formData.warehouse_entry_date}
+                                                onChange={handleInputChange}
+                                                onClick={(e) => { try { if (e.target.showPicker) e.target.showPicker(); } catch (err) {} }}
+                                            />
+                                            <div className="flex items-center justify-between w-full px-6 py-4 rounded-3xl border-2 border-slate-100 group-hover:border-emerald-400 bg-slate-50 font-black text-slate-800 transition-colors pointer-events-none text-base">
+                                                <span className={formData.warehouse_entry_date ? 'text-slate-800' : 'text-slate-300'}>{formData.warehouse_entry_date ? formatDate(formData.warehouse_entry_date) : 'DD/MM/YYYY'}</span>
+                                                <Calendar size={18} className="text-emerald-400" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Hướng xử lý / Resolution</label>
                                     <textarea
@@ -889,8 +933,23 @@ function App() {
                                     </div>
                                 </div>
 
-                                {/* Image Display in Detail Modal */}
-                                {selectedIssue.image_url && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    {selectedIssue.expiry_date && (
+                                                        <div className="bg-amber-50/50 p-5 rounded-3xl border-2 border-amber-100">
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Hạn sử dụng / Expiry Date</p>
+                                                            <p className="font-black text-amber-700 text-lg">{formatDate(selectedIssue.expiry_date)}</p>
+                                                        </div>
+                                                    )}
+                                                    {selectedIssue.warehouse_entry_date && (
+                                                        <div className="bg-emerald-50/50 p-5 rounded-3xl border-2 border-emerald-100">
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ngày nhập kho / Warehouse Entry</p>
+                                                            <p className="font-black text-emerald-700 text-lg">{formatDate(selectedIssue.warehouse_entry_date)}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Image Display in Detail Modal */}
+                                                {selectedIssue.image_url && (
                                     <div className="space-y-3">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
                                             <ImageIcon size={14} /> Ảnh đính kèm / Attached Image
