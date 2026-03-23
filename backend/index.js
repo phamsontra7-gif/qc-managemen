@@ -195,6 +195,9 @@ app.put('/api/users/:id', authenticate, isAdmin, async (req, res) => {
 app.get('/api/years', authenticate, async (req, res) => {
     try {
         const years = await Year.findAll({
+            where: {
+                year: { [Op.notIn]: [2023, 2024] }
+            },
             order: [['year', 'ASC']]
         });
         res.json(years);
