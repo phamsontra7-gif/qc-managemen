@@ -450,6 +450,68 @@ app.post('/api/seed', async (req, res) => {
     }
 });
 
+// --- STATS: Year-over-Year Comparison ---
+app.get('/api/stats/yearly-comparison', authenticate, async (req, res) => {
+    try {
+        const currentYear = new Date().getFullYear();
+        const previousYear = currentYear - 1;
+
+        // Find Year records for both years
+        const [curYearObj, prevYearObj] = await Promise.all([
+            Year.findOne({ where: { year: currentYear } }),
+            Year.findOne({ where: { year: previousYear } })
+        ]);
+
+        const currentYearId = curYearObj ? curYearObj.id : null;
+        const previousYearId = prevYearObj ? prevYearObj.id : null;
+
+        // Fetch issues for both years via detected_date year OR year_id
+        const fetchByYear = async (yearId, yearNum) => {
+            if (!yearId) return [];
+            return Issue.findAll({
+                where: { year_id: yearId },
+                attributes: ['product_type', 'status']
+            });
+        };
+
+        const [currentIssues, previousIssues] = await Promise.all([
+            fetchByYear(currentYearId, currentYear),
+            fetchByYear(previousYearId, previousYear)
+        ]);
+
+        // Collect all unique product_types across both years
+        const allTypes = new Set([
+            ...currentIssues.map(i => i.product_type || 'Khác/Other'),
+            ...previousIssues.map(i => i.product_type || 'Khác/Other')
+        ]);
+
+        const groups = Array.from(allTypes).sort().map(pt => {
+            const curr = currentIssues.filter(i => (i.product_type || 'Khác/Other') === pt);
+            const prev = previousIssues.filter(i => (i.product_type || 'Khác/Other') === pt);
+            return {
+                product_type: pt,
+                current: {
+                    total: curr.length,
+                    new: curr.filter(i => i.status === 'NEW').length,
+                    pending: curr.filter(i => i.status === 'PENDING').length,
+                    done: curr.filter(i => i.status === 'DONE').length,
+                },
+                previous: {
+                    total: prev.length,
+                    new: prev.filter(i => i.status === 'NEW').length,
+                    pending: prev.filter(i => i.status === 'PENDING').length,
+                    done: prev.filter(i => i.status === 'DONE').length,
+                }
+            };
+        });
+
+        res.json({ currentYear, previousYear, groups });
+    } catch (error) {
+        console.error('yearly-comparison error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 server.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 Server is running on port ${PORT}`);
 

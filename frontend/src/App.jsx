@@ -24,7 +24,236 @@ const getImageSrc = (url) => {
     return `${API_BASE_URL}${url}`;
 };
 
+
+// ─── Year Comparison Chart Component ───────────────────────────────────────
+function YearComparisonChart({ data }) {
+    const [tooltip, setTooltip] = React.useState(null);
+
+    if (!data) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-16 w-16 border-[6px] border-slate-100 border-t-blue-600"></div>
+            </div>
+        );
+    }
+
+    const { currentYear, previousYear, groups } = data;
+
+    // Short labels for chart
+    const shortLabel = (pt) => {
+        if (!pt) return 'Khác';
+        if (pt.toLowerCase().includes('thành phẩm') || pt.toLowerCase().includes('products')) return 'Thành phẩm';
+        if (pt.toLowerCase().includes('nguyên') || pt.toLowerCase().includes('raw')) return 'Nguyên VL';
+        if (pt.toLowerCase().includes('repacking')) return 'Repacking';
+        return pt.length > 12 ? pt.slice(0, 10) + '…' : pt;
+    };
+
+    const maxVal = Math.max(1, ...groups.flatMap(g => [g.current.total, g.previous.total]));
+    const chartH = 220;
+    const barW = 32;
+    const gap = 8;
+    const groupGap = 28;
+    const groupW = barW * 2 + gap + groupGap;
+    const padL = 48;
+    const padR = 20;
+    const padT = 20;
+    const padB = 64;
+    const totalW = padL + groups.length * groupW + padR;
+
+    const barHeight = (val) => (val / maxVal) * chartH;
+
+    // Y-axis grid lines
+    const gridLines = [0, 0.25, 0.5, 0.75, 1].map(p => ({
+        y: padT + chartH - p * chartH,
+        label: Math.round(p * maxVal)
+    }));
+
+    return (
+        <div className="bg-white rounded-[2.5rem] shadow-sm p-8 animate-in fade-in duration-700">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+                <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">So sánh số lượng sự cố theo nhóm</p>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                        Năm <span className="text-blue-600">{currentYear}</span>
+                        <span className="text-slate-400 font-bold text-lg mx-3">vs</span>
+                        Năm <span className="text-slate-500">{previousYear}</span>
+                    </h2>
+                </div>
+                {/* Legend */}
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 rounded-md bg-blue-500"></div>
+                        <span className="text-sm font-bold text-slate-600">Năm {currentYear}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 rounded-md bg-slate-300"></div>
+                        <span className="text-sm font-bold text-slate-600">Năm {previousYear}</span>
+                    </div>
+                </div>
+            </div>
+
+            {groups.length === 0 ? (
+                <div className="text-center py-16 text-slate-400">
+                    <p className="text-sm font-bold">Chưa có dữ liệu cho hai năm này</p>
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <svg
+                        width={totalW}
+                        height={chartH + padT + padB}
+                        style={{ minWidth: Math.min(totalW, 600) + 'px', width: '100%' }}
+                        viewBox={`0 0 ${totalW} ${chartH + padT + padB}`}
+                        preserveAspectRatio="xMinYMid meet"
+                    >
+                        {/* Grid lines */}
+                        {gridLines.map((gl, i) => (
+                            <g key={i}>
+                                <line
+                                    x1={padL} y1={gl.y}
+                                    x2={totalW - padR} y2={gl.y}
+                                    stroke="#f1f5f9" strokeWidth="1.5"
+                                />
+                                <text
+                                    x={padL - 8} y={gl.y + 4}
+                                    textAnchor="end"
+                                    fontSize="11" fontWeight="700"
+                                    fill="#94a3b8"
+                                >{gl.label}</text>
+                            </g>
+                        ))}
+
+                        {/* Bars */}
+                        {groups.map((g, gi) => {
+                            const x0 = padL + gi * groupW;
+                            const curH = barHeight(g.current.total);
+                            const prevH = barHeight(g.previous.total);
+                            const curY = padT + chartH - curH;
+                            const prevY = padT + chartH - prevH;
+                            const label = shortLabel(g.product_type);
+
+                            return (
+                                <g key={gi}>
+                                    {/* Previous year bar */}
+                                    <rect
+                                        x={x0} y={prevY}
+                                        width={barW} height={prevH}
+                                        rx="8" fill="#cbd5e1"
+                                        onMouseEnter={(e) => setTooltip({ x: x0 + barW / 2, y: prevY - 8, label: `${previousYear}: ${g.previous.total} (Mới:${g.previous.new} Xử lý:${g.previous.pending} Xong:${g.previous.done})` })}
+                                        onMouseLeave={() => setTooltip(null)}
+                                        style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                                        onMouseOver={e => e.target.style.opacity = 0.75}
+                                        onMouseOut={e => e.target.style.opacity = 1}
+                                    />
+                                    {g.previous.total > 0 && (
+                                        <text
+                                            x={x0 + barW / 2} y={prevY - 6}
+                                            textAnchor="middle"
+                                            fontSize="11" fontWeight="800" fill="#64748b"
+                                        >{g.previous.total}</text>
+                                    )}
+
+                                    {/* Current year bar */}
+                                    <rect
+                                        x={x0 + barW + gap} y={curY}
+                                        width={barW} height={curH}
+                                        rx="8" fill="#3b82f6"
+                                        onMouseEnter={() => setTooltip({ x: x0 + barW + gap + barW / 2, y: curY - 8, label: `${currentYear}: ${g.current.total} (Mới:${g.current.new} Xử lý:${g.current.pending} Xong:${g.current.done})` })}
+                                        onMouseLeave={() => setTooltip(null)}
+                                        style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                                        onMouseOver={e => e.target.style.opacity = 0.75}
+                                        onMouseOut={e => e.target.style.opacity = 1}
+                                    />
+                                    {g.current.total > 0 && (
+                                        <text
+                                            x={x0 + barW + gap + barW / 2} y={curY - 6}
+                                            textAnchor="middle"
+                                            fontSize="11" fontWeight="800" fill="#2563eb"
+                                        >{g.current.total}</text>
+                                    )}
+
+                                    {/* X-axis label */}
+                                    <text
+                                        x={x0 + barW + gap / 2}
+                                        y={padT + chartH + 20}
+                                        textAnchor="middle"
+                                        fontSize="11" fontWeight="700" fill="#475569"
+                                    >{label}</text>
+                                </g>
+                            );
+                        })}
+
+                        {/* Baseline */}
+                        <line
+                            x1={padL} y1={padT + chartH}
+                            x2={totalW - padR} y2={padT + chartH}
+                            stroke="#e2e8f0" strokeWidth="2"
+                        />
+
+                        {/* Tooltip */}
+                        {tooltip && (
+                            <g>
+                                <rect
+                                    x={tooltip.x - 110} y={tooltip.y - 28}
+                                    width={220} height={30}
+                                    rx="8" fill="#1e293b" opacity="0.92"
+                                />
+                                <text
+                                    x={tooltip.x} y={tooltip.y - 8}
+                                    textAnchor="middle"
+                                    fontSize="10" fontWeight="700" fill="white"
+                                >{tooltip.label}</text>
+                            </g>
+                        )}
+                    </svg>
+                </div>
+            )}
+
+            {/* Summary table */}
+            {groups.length > 0 && (
+                <div className="mt-8 overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-slate-100">
+                                <th className="text-left py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nhóm sản phẩm</th>
+                                <th className="text-center py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng {previousYear}</th>
+                                <th className="text-center py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng {currentYear}</th>
+                                <th className="text-center py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Thay đổi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {groups.map((g, i) => {
+                                const diff = g.current.total - g.previous.total;
+                                const isUp = diff > 0;
+                                const isDown = diff < 0;
+                                return (
+                                    <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                        <td className="py-3 px-4 font-bold text-slate-700">{shortLabel(g.product_type)}</td>
+                                        <td className="py-3 px-4 text-center font-black text-slate-500">{g.previous.total}</td>
+                                        <td className="py-3 px-4 text-center font-black text-blue-600">{g.current.total}</td>
+                                        <td className="py-3 px-4 text-center">
+                                            {diff === 0 ? (
+                                                <span className="text-slate-400 font-bold">—</span>
+                                            ) : (
+                                                <span className={`font-black ${isUp ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                                    {isUp ? '+' : ''}{diff}
+                                                </span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
+// ───────────────────────────────────────────────────────────────────────────
+
 function App() {
+
     const [view, setView] = useState('dashboard');
     const [issues, setIssues] = useState([]);
     const [years, setYears] = useState([]);
@@ -35,7 +264,8 @@ function App() {
     const [imagePreview, setImagePreview] = useState(null);
     const [selectedYear, setSelectedYear] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
-    const [selectedStatus, setSelectedStatus] = useState('ALL');
+    const [selectedStatus, setSelectedStatus] = useState(null);
+    const [yearComparisonData, setYearComparisonData] = useState(null);
     const [notifications, setNotifications] = useState([]);
     const [notificationHistory, setNotificationHistory] = useState([]);
     const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -114,8 +344,26 @@ function App() {
         }
     };
 
+    const fetchYearComparison = async () => {
+        if (!user) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/stats/yearly-comparison`, {
+                headers: getAuthHeader()
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setYearComparisonData(data);
+            }
+        } catch (err) {
+            console.error('Error fetching yearly comparison:', err);
+        }
+    };
+
     useEffect(() => {
         fetchData(selectedYear, selectedCategory);
+        if (selectedYear === null) {
+            fetchYearComparison();
+        }
     }, [selectedYear, selectedCategory, user]);
 
     // Socket Setup
@@ -325,7 +573,7 @@ function App() {
                             </div>
 
                             <button
-                                onClick={() => { setSelectedYear(null); setSelectedCategory(null); }}
+                                onClick={() => { setSelectedYear(null); setSelectedCategory(null); setSelectedStatus(null); }}
                                 className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 group ${selectedYear === null ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' : 'text-slate-500 hover:bg-slate-50'}`}
                             >
                                 <LayoutGrid size={18} className={selectedYear === null ? 'text-blue-400' : 'text-slate-400 group-hover:text-blue-500'} />
@@ -335,7 +583,7 @@ function App() {
                             {years.map(y => (
                                 <button
                                     key={y.id}
-                                    onClick={() => { setSelectedYear(y.id); setSelectedCategory(null); }}
+                                    onClick={() => { setSelectedYear(y.id); setSelectedCategory(null); setSelectedStatus(null); }}
                                     className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 ${selectedYear === y.id ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' : 'text-slate-500 hover:bg-slate-50'}`}
                                 >
                                     <Calendar size={18} className={selectedYear === y.id ? 'text-blue-400' : 'text-slate-400'} />
@@ -502,6 +750,18 @@ function App() {
                                     </div>
                                 ))}
                             </div>
+                            {/* Back to chart button when stat card is selected */}
+                            {selectedStatus !== null && selectedYear === null && (
+                                <div className="mb-6">
+                                    <button
+                                        onClick={() => setSelectedStatus(null)}
+                                        className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 hover:border-blue-300 transition-all duration-300 shadow-sm"
+                                    >
+                                        <ChevronRight size={16} strokeWidth={3} className="rotate-180" />
+                                        Quay lại biểu đồ / Back to Chart
+                                    </button>
+                                </div>
+                            )}
 
                             {loading ? (
                                 <div className="flex justify-center items-center h-64">
@@ -509,10 +769,13 @@ function App() {
                                         <div className="animate-spin rounded-full h-16 w-16 border-[6px] border-slate-100 border-t-blue-600"></div>
                                     </div>
                                 </div>
+                            ) : selectedYear === null && selectedStatus === null ? (
+                                /* Year comparison chart shown when All Years and no stat card selected */
+                                <YearComparisonChart data={yearComparisonData} />
                             ) : (
                                 <div className="animate-in fade-in duration-700">
                                     <IssueList
-                                        issues={issues.filter(issue => selectedStatus === 'ALL' || issue.status === selectedStatus)}
+                                        issues={issues.filter(issue => selectedStatus === null || selectedStatus === 'ALL' || issue.status === selectedStatus)}
                                         onSelectIssue={(issue) => setSelectedIssue(issue)}
                                     />
                                 </div>
