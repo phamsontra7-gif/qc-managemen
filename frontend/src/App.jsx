@@ -73,22 +73,22 @@ function YearComparisonChart({ data }) {
             {/* Header */}
             <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
                 <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">So sánh số lượng sự cố theo nhóm</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">So sánh số lượng sự cố theo nhóm / Comparison by Category</p>
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                        Năm <span className="text-blue-600">{currentYear}</span>
+                        Năm / Year <span className="text-blue-600">{currentYear}</span>
                         <span className="text-slate-400 font-bold text-lg mx-3">vs</span>
-                        Năm <span className="text-slate-500">{previousYear}</span>
+                        Năm / Year <span className="text-slate-500">{previousYear}</span>
                     </h2>
                 </div>
                 {/* Legend */}
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded-md bg-blue-500"></div>
-                        <span className="text-sm font-bold text-slate-600">Năm {currentYear}</span>
+                        <span className="text-sm font-bold text-slate-600">Năm / Year {currentYear}</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded-md bg-slate-300"></div>
-                        <span className="text-sm font-bold text-slate-600">Năm {previousYear}</span>
+                        <span className="text-sm font-bold text-slate-600">Năm / Year {previousYear}</span>
                     </div>
                 </div>
             </div>
@@ -215,10 +215,10 @@ function YearComparisonChart({ data }) {
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b border-slate-100">
-                                <th className="text-left py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nhóm sản phẩm</th>
-                                <th className="text-center py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng {previousYear}</th>
-                                <th className="text-center py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng {currentYear}</th>
-                                <th className="text-center py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Thay đổi</th>
+                                <th className="text-left py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nhóm sản phẩm<br/>Product Group</th>
+                                <th className="text-center py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng / Total<br/>{previousYear}</th>
+                                <th className="text-center py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng / Total<br/>{currentYear}</th>
+                                <th className="text-center py-3 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Thay đổi<br/>Change</th>
                             </tr>
                         </thead>
                         <tbody>
