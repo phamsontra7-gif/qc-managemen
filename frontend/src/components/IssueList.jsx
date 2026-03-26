@@ -51,8 +51,8 @@ const IssueList = ({ issues, onSelectIssue }) => {
                 )}
             </div>
 
-            {/* Table */}
-            <div className="overflow-hidden bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-hidden bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl overflow-x-auto">
                 <table className="min-w-full table-auto">
                     <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-200">
@@ -154,6 +154,102 @@ const IssueList = ({ issues, onSelectIssue }) => {
                         )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+                {filteredIssues.length === 0 ? (
+                    <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl p-8 text-center mt-4">
+                        <div className="flex flex-col items-center gap-2">
+                            {searchQuery ? (
+                                <>
+                                    <Search size={32} className="text-slate-200 mx-auto" />
+                                    <p className="text-slate-400 font-bold">Không tìm thấy sản phẩm "<span className="text-blue-500">{searchQuery}</span>"</p>
+                                    <p className="text-slate-300 text-xs">No results found · Try a different keyword</p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-slate-400 font-medium">Chưa có dữ liệu / No Data</p>
+                                    <p className="text-slate-300 text-xs">Vui lòng nhấn "Báo cáo mới" / Click "New Report" to add</p>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    filteredIssues.map((issue) => (
+                        <div 
+                            key={issue.id} 
+                            onClick={() => onSelectIssue(issue)}
+                            className={`bg-white backdrop-blur-md rounded-2xl border shadow-md p-5 mt-4 space-y-4 active:scale-[0.98] transition-all duration-200 cursor-pointer ${issue.status === 'NEW' ? 'border-rose-100 bg-rose-50/20 shadow-rose-100/50' : 'border-slate-200 hover:bg-slate-50'}`}
+                        >
+                            <div className="flex justify-between items-start gap-3">
+                                <div className="flex flex-col gap-2.5 items-start">
+                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${issue.product_type?.includes('Nguyên Vật Liệu') ? 'bg-blue-100 text-blue-700' :
+                                        issue.product_type === 'Repacking' ? 'bg-amber-100 text-amber-700' :
+                                            issue.product_type?.includes('Thành phẩm') ? 'bg-emerald-100 text-emerald-700' :
+                                                'bg-slate-100 text-slate-600'
+                                        }`}>
+                                        {issue.product_type || 'Khác'}
+                                    </span>
+                                    <button 
+                                        className="text-sm font-black text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100 hover:shadow-md transition-shadow"
+                                    >
+                                        {issue.issue_code || `#${String(issue.id).padStart(4, '0')}`}
+                                    </button>
+                                </div>
+                                <div className="bg-slate-50 px-2 py-1.5 rounded-md border border-slate-100">
+                                    <span className="text-xs font-bold text-slate-500 whitespace-nowrap">
+                                        {formatDate(issue.detected_date)}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div className="flex items-start gap-2">
+                                    <div className="text-base font-extrabold text-slate-900 leading-snug">
+                                        {searchQuery && issue.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ? (
+                                            (() => {
+                                                const idx = issue.product_name.toLowerCase().indexOf(searchQuery.toLowerCase());
+                                                return (
+                                                    <>
+                                                        {issue.product_name.slice(0, idx)}
+                                                        <mark className="bg-yellow-200 text-yellow-900 rounded px-0.5">{issue.product_name.slice(idx, idx + searchQuery.length)}</mark>
+                                                        {issue.product_name.slice(idx + searchQuery.length)}
+                                                    </>
+                                                );
+                                            })()
+                                        ) : issue.product_name}
+                                    </div>
+                                    {issue.image_url && <Camera size={16} className="text-blue-500 flex-shrink-0 mt-0.5" />}
+                                </div>
+                                <div className="text-xs text-slate-400 font-semibold mt-1">
+                                    {issue.lot_no ? `Lot: ${issue.lot_no} • ` : ''}
+                                    {issue.Year && `Năm ${issue.Year.year}`}
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100/50 relative">
+                                <span className="absolute -top-2 -left-1 text-2xl text-slate-200 font-serif opacity-50">"</span>
+                                <p className="text-sm text-slate-600 line-clamp-3 leading-relaxed relative z-10 pl-2">
+                                    {issue.defect_description || <span className="italic text-slate-400">Không có mô tả / No description</span>}
+                                </p>
+                            </div>
+
+                            <div className="flex justify-between items-end pt-2 border-t border-slate-100">
+                                <div className="flex flex-col text-left">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Số lượng / QTY</span>
+                                    <div className="text-lg font-black text-slate-800 leading-none">
+                                        {issue.quantity ? Number(issue.quantity).toLocaleString() : '0'}
+                                        <span className="text-slate-500 font-bold ml-1.5 text-xs uppercase">{issue.unit || 'kg'}</span>
+                                    </div>
+                                </div>
+                                <div className="mb-0.5">
+                                    <StatusBadge status={issue.status} />
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );
