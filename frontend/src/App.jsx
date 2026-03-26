@@ -724,6 +724,27 @@ function App() {
                                 </div>
                             </header>
 
+                            {/* Mobile Year Selector */}
+                            <div className="lg:hidden flex gap-3 overflow-x-auto pb-4 mb-8 custom-scrollbar-minimal w-full">
+                                <button
+                                    onClick={() => { setSelectedYear(null); setSelectedCategory(null); setSelectedStatus(null); }}
+                                    className={`flex-shrink-0 flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm transition-all duration-300 shadow-sm ${selectedYear === null ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 border border-slate-100 hover:bg-slate-50'}`}
+                                >
+                                    <LayoutGrid size={18} className={selectedYear === null ? 'text-blue-400' : 'text-slate-400'} />
+                                    Tất cả / All Years
+                                </button>
+                                {years.map(y => (
+                                    <button
+                                        key={y.id}
+                                        onClick={() => { setSelectedYear(y.id); setSelectedCategory(null); setSelectedStatus(null); }}
+                                        className={`flex-shrink-0 flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm transition-all duration-300 shadow-sm ${selectedYear === y.id ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 border border-slate-100 hover:bg-slate-50'}`}
+                                    >
+                                        <Calendar size={18} className={selectedYear === y.id ? 'text-blue-400' : 'text-slate-400'} />
+                                        Năm {y.year}
+                                    </button>
+                                ))}
+                            </div>
+
                             {/* Stats */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
                                 {[
