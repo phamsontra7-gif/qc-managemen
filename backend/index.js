@@ -9,7 +9,7 @@ const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const cloudinary = require('cloudinary').v2;
-require('./cron'); // Initialize cron jobs
+const initCron = require('./cron'); // Cron factory — initialized after io is created
 
 // Configure Cloudinary
 cloudinary.config({
@@ -43,6 +43,9 @@ io.on('connection', (socket) => {
         console.log(`🔌 Client disconnected: ${socket.id}`);
     });
 });
+
+// Initialize cron jobs (pass io so cron can emit socket events)
+const cronJobs = initCron(io);
 
 // Configure Multer - use memory storage, upload to Cloudinary
 const upload = multer({ storage: multer.memoryStorage() });
@@ -390,6 +393,17 @@ app.put('/api/issues/:id', authenticate, upload.single('image'), async (req, res
     } catch (error) {
         console.error('--- [ISSUES PUT ERROR] ---', error);
         res.status(500).json({ error: error.message || 'Lỗi hệ thống khi cập nhật' });
+    }
+});
+
+// --- TEST ROUTE: manually trigger cron job (remove in production) ---
+app.get('/api/test/run-cron', async (req, res) => {
+    try {
+        console.log('🔧 Manual cron trigger via /api/test/run-cron');
+        await cronJobs.checkOverdueIssues();
+        res.json({ message: 'Cron job executed successfully. Check server logs for details.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 });
 

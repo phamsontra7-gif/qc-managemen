@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const { Issue, Notification, sequelize } = require('./db');
+const { Issue, Notification, MaterialCategory, Year } = require('./db');
 const { Op } = require('sequelize');
 
 // Mock function for Push Notification (e.g. FCM)
@@ -18,36 +18,70 @@ const createNotification = async (issueId, message) => {
     }
 };
 
-const checkOverdueIssues = async () => {
-    console.log('Running daily task: Checking for overdue issues...');
+// Main cron task: auto-set status NEW → PENDING after 7 days since detected_date
+const checkOverdueIssues = async (io) => {
+    console.log('⏰ Running daily task: Checking for overdue NEW issues...');
+
+    // Format as YYYY-MM-DD string to correctly compare with DATEONLY column
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]; // e.g. "2026-03-18"
+    console.log(`Checking for NEW issues with detected_date <= ${sevenDaysAgoStr}`);
 
     try {
-        // Tìm các issue chưa xong và không cập nhật trong 7 ngày
+        // Find issues that are still NEW and detected_date is more than 7 days ago
         const overdueIssues = await Issue.findAll({
             where: {
-                status: { [Op.ne]: 'DONE' },
-                last_updated: { [Op.lte]: sevenDaysAgo }
+                status: 'NEW',
+                detected_date: { [Op.lte]: sevenDaysAgoStr }
             }
         });
 
+        console.log(`Found ${overdueIssues.length} NEW issue(s) overdue (> 7 days without update).`);
+
         for (const issue of overdueIssues) {
-            // Tạo thông báo vào bảng Notifications
-            await createNotification(
-                issue.id,
-                `Cảnh báo: Issue ${issue.product_name} đã quá 7 ngày chưa có cập nhật mới!`
-            );
-            // Gửi qua FCM cho Manager/Admin
+            // Auto-change status to PENDING
+            await issue.update({
+                status: 'PENDING',
+                last_updated: new Date()
+            });
+
+            // Create notification record
+            const message = `⚠️ Issue "${issue.product_name || issue.issue_code}" đã tự động chuyển sang PENDING do không có cập nhật trong 7 ngày.`;
+            await createNotification(issue.id, message);
+            console.log(`✅ Issue ID ${issue.id} auto-changed: NEW → PENDING`);
+
+            // Emit socket event to update frontend in realtime (if io is available)
+            if (io) {
+                const updatedIssue = await Issue.findOne({
+                    where: { id: issue.id },
+                    include: [
+                        { model: MaterialCategory, include: [Year] },
+                        { model: Year }
+                    ]
+                });
+                io.emit('issue_updated', updatedIssue);
+            }
+
+            // Send push notification
             sendPushNotification(issue.id);
         }
-        console.log(`Task completed. Found ${overdueIssues.length} overdue issues.`);
+
+        console.log(`✅ Daily cron task completed. Auto-changed ${overdueIssues.length} issue(s) to PENDING.`);
     } catch (error) {
-        console.error('Error checking overdue issues:', error);
+        console.error('❌ Error in checkOverdueIssues cron job:', error);
     }
 };
 
-// Schedule task to run at 00:00 every day
-cron.schedule('0 0 * * *', checkOverdueIssues);
+// Export a factory function that accepts io and registers the cron job
+module.exports = (io) => {
+    // Schedule task to run at 00:00 every day (Vietnam timezone: UTC+7)
+    cron.schedule('0 0 * * *', () => checkOverdueIssues(io), {
+        timezone: 'Asia/Ho_Chi_Minh'
+    });
 
-module.exports = { checkOverdueIssues };
+    console.log('🕐 Cron job scheduled: Auto-pending overdue issues at 00:00 (ICT) daily.');
+
+    // Export the function so it can be triggered manually (e.g. for testing)
+    return { checkOverdueIssues: () => checkOverdueIssues(io) };
+};

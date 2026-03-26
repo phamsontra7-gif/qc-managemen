@@ -61,6 +61,11 @@ const Issue = sequelize.define('Issue', {
     type: DataTypes.STRING,
     defaultValue: 'NEW'
   },
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: Sequelize.NOW,
+    // Set once on creation, never updated — used for 7-day auto-pending timer
+  },
   last_updated: {
     type: DataTypes.DATE,
     defaultValue: Sequelize.NOW
