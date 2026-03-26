@@ -10,7 +10,7 @@ const StatusBadge = ({ status }) => {
 
     const textMap = {
         'DONE': 'Hoàn thành',
-        'PENDING': 'Chờ xử lý',
+        'PENDING': 'Chờ xử lý • Pending',
         'IN_PROGRESS': 'Đang xử lý',
         'NEW': 'Mới'
     };

@@ -728,7 +728,7 @@ function App() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
                                 {[
                                     { id: 'ALL', label: 'Sự cố / Total', value: stats.total, color: 'blue', icon: Clock },
-                                    { id: 'NEW', label: 'Mới / New', value: stats.new, color: 'rose', icon: AlertCircle },
+                                    { id: 'NEW', label: 'This Week', value: stats.new, color: 'rose', icon: AlertCircle },
                                     { id: 'PENDING', label: 'Xử lý / Pending', value: stats.pending, color: 'amber', icon: Clock },
                                     { id: 'DONE', label: 'K.Thúc / Done', value: stats.done, color: 'emerald', icon: CheckCircle2 },
                                 ].map((stat, idx) => (
