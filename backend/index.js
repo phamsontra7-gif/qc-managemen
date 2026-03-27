@@ -396,6 +396,28 @@ app.put('/api/issues/:id', authenticate, upload.single('image'), async (req, res
     }
 });
 
+app.delete('/api/issues/:id', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const issue = await Issue.findByPk(id);
+
+        if (!issue) {
+            return res.status(404).json({ error: 'Sự cố không tồn tại' });
+        }
+
+        // Delete the issue from the database
+        await issue.destroy();
+
+        // Emit socket event so clients can remove it from their lists
+        req.io.emit('issue_deleted', { id: parseInt(id) });
+
+        res.json({ message: 'Đã xóa sự cố thành công', id: parseInt(id) });
+    } catch (error) {
+        console.error('--- [ISSUES DELETE ERROR] ---', error);
+        res.status(500).json({ error: 'Lỗi hệ thống khi xóa' });
+    }
+});
+
 // --- TEST ROUTE: manually trigger cron job (remove in production) ---
 app.get('/api/test/run-cron', async (req, res) => {
     try {

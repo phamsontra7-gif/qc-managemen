@@ -393,6 +393,10 @@ function App() {
                     return prevIssues.map(i => i.id === updatedIssue.id ? updatedIssue : i);
                 });
             });
+
+            socket.on('issue_deleted', ({ id }) => {
+                setIssues(prevIssues => prevIssues.filter(i => i.id !== id));
+            });
         }
 
         return () => {
@@ -524,6 +528,34 @@ function App() {
             setLoading(false);
             console.error('Error creating issue:', error);
             alert(`Lỗi kết nối: ${error.message}`);
+        }
+    };
+
+    const handleDeleteIssue = async (id) => {
+        if (!window.confirm("Bạn có chắc chắn muốn xóa sự cố này không? Thao tác này không thể hoàn tác.")) {
+            return;
+        }
+        
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/issues/${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeader()
+            });
+            
+            if (response.ok) {
+                setShowModal(false);
+                setSelectedIssue(null);
+                showNotification('Đã xóa sự cố thành công', 'success');
+            } else {
+                const errorData = await response.json();
+                alert(`Lỗi từ hệ thống khi xóa: ${errorData.error}`);
+            }
+        } catch (error) {
+            console.error("Error deleting issue:", error);
+            alert(`Lỗi kết nối: ${error.message}`);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -1118,6 +1150,16 @@ function App() {
                             </div>
 
                             <div className="p-10 bg-slate-50 border-t border-slate-100 flex gap-6">
+                                {formData.id && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDeleteIssue(formData.id)}
+                                        className="bg-rose-50 text-rose-600 px-8 py-5 rounded-[2rem] font-black hover:bg-rose-600 hover:text-white transition-all text-sm uppercase tracking-widest border border-rose-200 hover:border-transparent flex items-center justify-center shadow-sm"
+                                        title="Xóa sự cố này"
+                                    >
+                                        Xóa
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={() => setShowModal(false)}
