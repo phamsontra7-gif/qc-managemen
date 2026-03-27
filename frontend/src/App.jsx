@@ -1294,6 +1294,14 @@ function App() {
 
                         <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
                             <button
+                                type="button"
+                                onClick={() => handleDeleteIssue(selectedIssue.id)}
+                                className="bg-rose-50 text-rose-600 px-8 py-5 rounded-[2rem] font-black hover:bg-rose-600 hover:text-white transition-all text-sm uppercase tracking-widest border border-rose-200 hover:border-transparent flex items-center justify-center shadow-sm"
+                                title="Xóa sự cố này"
+                            >
+                                Xóa
+                            </button>
+                            <button
                                 onClick={() => {
                                     setFormData({
                                         ...selectedIssue,
