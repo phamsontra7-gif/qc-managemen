@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import IssueList from './components/IssueList';
-import { Plus, X, AlertCircle, CheckCircle2, Clock, Calendar, ShieldCheck, Layers, ChevronRight, ChevronDown, LogOut, User as UserIcon, Users as UsersIcon, LayoutGrid, Camera, Image as ImageIcon, Bell } from 'lucide-react';
+import { Plus, X, AlertCircle, CheckCircle2, Clock, Calendar, ShieldCheck, Layers, ChevronRight, ChevronDown, LogOut, User as UserIcon, Users as UsersIcon, LayoutGrid, Camera, Image as ImageIcon, Bell, FileSpreadsheet } from 'lucide-react';
 import Login from './components/Login';
 import UserManager from './components/UserManager';
+import ExcelImport from './components/ExcelImport';
 import API_BASE_URL from './config';
 import { io } from 'socket.io-client';
 
@@ -269,6 +270,7 @@ function App() {
     const [notifications, setNotifications] = useState([]);
     const [notificationHistory, setNotificationHistory] = useState([]);
     const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+    const [showExcelImport, setShowExcelImport] = useState(false);
     const [user, setUser] = useState(() => {
         try {
             const savedUser = localStorage.getItem('user');
@@ -721,6 +723,18 @@ function App() {
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Import Excel button - visible to all users */}
+                                    <button
+                                        onClick={() => setShowExcelImport(true)}
+                                        className="group bg-emerald-500 text-white px-6 py-4 rounded-2xl font-black hover:bg-emerald-600 shadow-xl shadow-emerald-200 transition-all duration-300 flex items-center gap-2.5 transform hover:-translate-y-1 active:scale-95"
+                                    >
+                                        <FileSpreadsheet size={20} strokeWidth={2.5} />
+                                        <span className="flex flex-col items-start leading-tight">
+                                            <span>Import Excel</span>
+                                            <span className="text-[10px] font-bold opacity-75 tracking-widest uppercase">Báo cáo tháng</span>
+                                        </span>
+                                    </button>
 
                                     <button
                                         onClick={() => {
@@ -1326,6 +1340,18 @@ function App() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Excel Import Modal */}
+            {showExcelImport && (
+                <ExcelImport
+                    onClose={() => setShowExcelImport(false)}
+                    getAuthHeader={getAuthHeader}
+                    onImportDone={() => {
+                        fetchData(selectedYear, selectedCategory);
+                        showNotification('Import Excel thành công! Dữ liệu đã được cập nhật.', 'success');
+                    }}
+                />
             )}
 
             {/* Notifications Toast */}

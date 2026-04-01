@@ -9,6 +9,7 @@ const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
 const cloudinary = require('cloudinary').v2;
+const XLSX = require('xlsx');
 const initCron = require('./cron'); // Cron factory — initialized after io is created
 
 // Configure Cloudinary
@@ -550,6 +551,249 @@ app.get('/api/stats/yearly-comparison', authenticate, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// ─── EXCEL IMPORT ENDPOINT ─────────────────────────────────────────────────
+// POST /api/import/excel
+// Body (multipart): file = .xlsx file, product_type = 'Ingredient'|'Product'|'Repacking'
+// The filename should be like "2025.07.xlsx" so we can extract year/month.
+// Each sheet name is the detection day (e.g. "01.12" or "01").
+app.post('/api/import/excel', authenticate, upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'Không có file được tải lên' });
+    }
+
+    const results = { success: 0, skipped: 0, errors: [] };
+
+    try {
+        // --- 1. Xác định product_type từ tham số truyền lên ---
+        const rawFolder = (req.body.product_type || '').trim();
+        let product_type = 'Khác/Other';
+        const folderLower = rawFolder.toLowerCase();
+        if (folderLower.includes('ingredient') || folderLower.includes('nguyên')) {
+            product_type = 'Nguyên Vật Liệu/Raw Material';
+        } else if (folderLower.includes('product') || folderLower.includes('thành phẩm')) {
+            product_type = 'Thành phẩm/Products';
+        } else if (folderLower.includes('repacking')) {
+            product_type = 'Repacking';
+        }
+
+        // --- 2. Xác định năm/tháng từ tên file (vd: "2025.07.xlsx") ---
+        const originalName = req.file.originalname.replace(/\.xlsx?$/i, ''); // "2025.07"
+        const fileParts = originalName.split('.');
+        let fileYear = null;
+        let fileMonth = null;
+        if (fileParts.length >= 2) {
+            fileYear = parseInt(fileParts[0]);   // 2025
+            fileMonth = parseInt(fileParts[1]);   // 7
+        } else if (fileParts.length === 1) {
+            fileYear = parseInt(fileParts[0]);
+        }
+
+        // --- 3. Tìm hoặc tạo Year record ---
+        let yearRecord = null;
+        if (fileYear && !isNaN(fileYear)) {
+            [yearRecord] = await Year.findOrCreate({ where: { year: fileYear } });
+        }
+
+        // --- 4. Parse Excel ---
+        const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
+
+        for (const sheetName of workbook.SheetNames) {
+            // --- 5. Parse ngày từ tên sheet ---
+            // Tên sheet có thể là: "01.12", "01/12", "1", "01", "01.12.2025", v.v.
+            let detectedDay = null;
+            let detectedMonth = fileMonth;
+            let detectedYear = fileYear;
+
+            const sheetTrimmed = sheetName.trim();
+            // Try formats: "DD.MM", "DD/MM", "DD.MM.YYYY", "DD/MM/YYYY", just "D" or "DD"
+            const dotMatch = sheetTrimmed.match(/^(\d{1,2})[.\/](\d{1,2})(?:[.\/](\d{2,4}))?$/);
+            if (dotMatch) {
+                detectedDay = parseInt(dotMatch[1]);
+                detectedMonth = parseInt(dotMatch[2]);
+                if (dotMatch[3]) {
+                    const y = parseInt(dotMatch[3]);
+                    detectedYear = y < 100 ? 2000 + y : y;
+                }
+            } else {
+                const numMatch = sheetTrimmed.match(/^(\d{1,2})$/);
+                if (numMatch) {
+                    detectedDay = parseInt(numMatch[1]);
+                }
+            }
+
+            if (!detectedDay || isNaN(detectedDay)) {
+                // Không thể parse ngày từ tên sheet, bỏ qua
+                results.errors.push(`Sheet "${sheetName}": Không parse được ngày từ tên sheet`);
+                continue;
+            }
+
+            const detected_date = detectedYear && detectedMonth
+                ? `${detectedYear}-${String(detectedMonth).padStart(2, '0')}-${String(detectedDay).padStart(2, '0')}`
+                : null;
+
+            // --- 6. Đọc rows từ sheet ---
+            const sheet = workbook.Sheets[sheetName];
+            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+            // Tìm hàng header: tìm hàng đầu tiên có từ "LOT" hoặc "PRODUCT" hoặc "SỐ LÔ"
+            let dataStartRow = 2; // Mặc định bỏ 2 hàng đầu (header)
+            for (let ri = 0; ri < Math.min(5, rows.length); ri++) {
+                const rowStr = rows[ri].join(' ').toUpperCase();
+                if (rowStr.includes('LOT') || rowStr.includes('PRODUCT') || rowStr.includes('SỐ LÔ') || rowStr.includes('NAME')) {
+                    dataStartRow = ri + 1; // Dữ liệu bắt đầu từ hàng tiếp theo
+                    break;
+                }
+            }
+
+            for (let ri = dataStartRow; ri < rows.length; ri++) {
+                const row = rows[ri];
+                // Bỏ qua hàng trống
+                const rowText = row.join('').trim();
+                if (!rowText) continue;
+
+                // Map cột theo thứ tự:
+                // A(0)=MFD/SỐ LÔ, B(1)=LOT NO, C(2)=STOCK IN DATE, D(3)=DATE OF DETECTION,
+                // E(4)=PRODUCT NAME, F(5)=REASONS, G(6)=QUANTITY, H(7)=REMEDIES, I(8)=IMAGE
+                const mfd_code    = String(row[0] || '').trim();
+                const lot_no      = String(row[1] || '').trim();
+                const stock_raw   = row[2];
+                const detect_raw  = row[3];
+                const product_name = String(row[4] || '').trim();
+                const defect_description = String(row[5] || '').trim();
+                const qty_raw     = row[6];
+                const resolution_direction = String(row[7] || '').trim();
+
+                if (!product_name && !lot_no) continue; // Bỏ hàng không có dữ liệu
+
+                // Parse dates
+                const parseExcelDate = (val) => {
+                    if (!val) return null;
+                    if (val instanceof Date) {
+                        const d = String(val.getDate()).padStart(2, '0');
+                        const m = String(val.getMonth() + 1).padStart(2, '0');
+                        const y = val.getFullYear();
+                        return `${y}-${m}-${d}`;
+                    }
+                    const s = String(val).trim();
+                    // Format DD/MM/YYYY or DD.MM.YYYY
+                    const dm = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})$/);
+                    if (dm) {
+                        const y = parseInt(dm[3]) < 100 ? 2000 + parseInt(dm[3]) : parseInt(dm[3]);
+                        return `${y}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;
+                    }
+                    // Try numeric (Excel serial)
+                    const num = parseFloat(s);
+                    if (!isNaN(num) && num > 40000) {
+                        const d = XLSX.SSF.parse_date_code(num);
+                        if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+                    }
+                    return null;
+                };
+
+                const received_date = parseExcelDate(stock_raw);
+                const final_detected_date = parseExcelDate(detect_raw) || detected_date;
+
+                // Parse quantity
+                let quantity = null;
+                const qStr = String(qty_raw || '').replace(/[^\d.]/g, '');
+                if (qStr) quantity = parseFloat(qStr);
+
+                // Determine year_id from detected_date
+                let finalYearRecord = yearRecord;
+                if (final_detected_date) {
+                    const yr = parseInt(final_detected_date.split('-')[0]);
+                    if (!finalYearRecord || finalYearRecord.year !== yr) {
+                        [finalYearRecord] = await Year.findOrCreate({ where: { year: yr } });
+                    }
+                }
+
+                // Build issue data
+                const issueData = {
+                    product_name: product_name || null,
+                    product_type,
+                    lot_no: lot_no || mfd_code || null,
+                    defect_description: defect_description || null,
+                    quantity: quantity,
+                    unit: 'kg',
+                    received_date: received_date || null,
+                    detected_date: final_detected_date || null,
+                    resolution_direction: resolution_direction || null,
+                    status: 'NEW',
+                    year_id: finalYearRecord ? finalYearRecord.id : null,
+                    last_updated: new Date()
+                };
+
+                // --- 7. Tự sinh issue_code (giống logic trong POST /api/issues) ---
+                try {
+                    let aa = 'K';
+                    const pt = (product_type || '').toLowerCase();
+                    if (pt.includes('thành phẩm') || pt.includes('products')) aa = 'TP';
+                    else if (pt.includes('nguyên') || pt.includes('raw')) aa = 'NL';
+                    else if (pt.includes('repacking')) aa = 'RP';
+
+                    let dd2 = '', mm2 = '', yy2 = '';
+                    if (final_detected_date) {
+                        const [y4, mo, dy] = final_detected_date.split('-');
+                        dd2 = dy; mm2 = mo; yy2 = y4.slice(-2);
+                    } else {
+                        const today = new Date();
+                        dd2 = String(today.getDate()).padStart(2, '0');
+                        mm2 = String(today.getMonth() + 1).padStart(2, '0');
+                        yy2 = String(today.getFullYear()).slice(-2);
+                    }
+
+                    const dateCode = `${dd2}${mm2}${yy2}`;
+                    const monthYearSearch = `${aa}-%%${mm2}${yy2}-%`;
+                    const matching = await Issue.findAll({
+                        where: { issue_code: { [Op.like]: monthYearSearch } },
+                        attributes: ['issue_code']
+                    });
+                    let highest = 0;
+                    matching.forEach(m => {
+                        if (m.issue_code) {
+                            const parts = m.issue_code.split('-');
+                            const n = parseInt(parts[parts.length - 1]);
+                            if (!isNaN(n) && n > highest) highest = n;
+                        }
+                    });
+                    issueData.issue_code = `${aa}-${dateCode}-${String(highest + 1).padStart(2, '0')}`;
+                } catch (codeErr) {
+                    console.error('Issue code gen error:', codeErr.message);
+                    issueData.issue_code = null;
+                }
+
+                // --- 8. Tạo Issue (kiểm tra duplicate theo lot_no + detected_date) ---
+                try {
+                    if (lot_no && final_detected_date) {
+                        const existing = await Issue.findOne({
+                            where: { lot_no, detected_date: final_detected_date }
+                        });
+                        if (existing) {
+                            results.skipped++;
+                            continue;
+                        }
+                    }
+
+                    const newIssue = await Issue.create(issueData);
+                    req.io.emit('issue_created', newIssue);
+                    results.success++;
+                } catch (createErr) {
+                    results.errors.push(`Sheet "${sheetName}" Row ${ri + 1}: ${createErr.message}`);
+                }
+            }
+        }
+
+        res.json({
+            message: `Import hoàn tất: ${results.success} tạo mới, ${results.skipped} bỏ qua (trùng), ${results.errors.length} lỗi`,
+            ...results
+        });
+    } catch (err) {
+        console.error('[IMPORT EXCEL ERROR]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+// ─────────────────────────────────────────────────────────────────────────────
 
 server.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 Server is running on port ${PORT}`);
