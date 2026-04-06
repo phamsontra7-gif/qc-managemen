@@ -75,12 +75,12 @@ const checkOverdueIssues = async (io) => {
 
 // Export a factory function that accepts io and registers the cron job
 module.exports = (io) => {
-    // Schedule task to run at 00:00 every day (Vietnam timezone: UTC+7)
-    cron.schedule('0 0 * * *', () => checkOverdueIssues(io), {
+    // Schedule task to run every hour at minute 0
+    cron.schedule('0 * * * *', () => checkOverdueIssues(io), {
         timezone: 'Asia/Ho_Chi_Minh'
     });
 
-    console.log('🕐 Cron job scheduled: Auto-pending overdue issues at 00:00 (ICT) daily.');
+    console.log('🕐 Cron job scheduled: Auto-pending overdue issues every hour.');
 
     // Export the function so it can be triggered manually (e.g. for testing)
     return { checkOverdueIssues: () => checkOverdueIssues(io) };

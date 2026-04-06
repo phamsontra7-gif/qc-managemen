@@ -48,6 +48,11 @@ io.on('connection', (socket) => {
 // Initialize cron jobs (pass io so cron can emit socket events)
 const cronJobs = initCron(io);
 
+// Execute immediately on startup (with a slight delay) to ensure missed overnight schedules are processed
+setTimeout(() => {
+    cronJobs.checkOverdueIssues().catch(console.error);
+}, 5000);
+
 // Configure Multer - use memory storage, upload to Cloudinary
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -90,6 +95,8 @@ const isAdmin = (req, res, next) => {
         res.status(403).json({ error: 'Access denied. Admin rights required.' });
     }
 };
+
+
 
 // Upload endpoint - Cloudinary
 app.post('/api/upload', authenticate, upload.single('image'), async (req, res) => {
