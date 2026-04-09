@@ -482,6 +482,47 @@ app.get('/api/test/run-cron', async (req, res) => {
     }
 });
 
+// --- DEBUG: Manual Seed & DB Status ---
+app.get('/api/test/db-check', async (req, res) => {
+    try {
+        await sequelize.authenticate();
+        await sequelize.sync({ alter: true });
+        
+        // Seed if missing
+        const targetYears = [2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
+        let createdCount = 0;
+        for (const y of targetYears) {
+            const [yearObj, created] = await Year.findOrCreate({ where: { year: y } });
+            if (created) createdCount++;
+        }
+        
+        // Check Admin
+        let adminMsg = "Admin exists";
+        const admin = await User.findOne({ where: { username: 'admin' } });
+        if (!admin) {
+            const adminPassword = await bcrypt.hash('admin123', 10);
+            await User.create({
+                username: 'admin',
+                password: adminPassword,
+                full_name: 'Hệ thống Quản trị',
+                role: 'ADMIN'
+            });
+            adminMsg = "Admin created";
+        }
+
+        res.json({
+            status: 'success',
+            connection: 'connected',
+            seeding: {
+                yearsCreated: createdCount,
+                admin: adminMsg
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message, stack: error.stack });
+    }
+});
+
 // --- GET Issue History ---
 app.get('/api/issues/:id/history', authenticate, async (req, res) => {
     try {
@@ -925,8 +966,8 @@ server.listen(PORT, '0.0.0.0', async () => {
         await sequelize.authenticate();
         console.log('✅ Database connected.');
 
-        // Sync models (simple sync is faster for production)
-        sequelize.sync().then(async () => {
+        // Sync models (using alter: true briefly to ensure Supabase has the right columns)
+        sequelize.sync({ alter: true }).then(async () => {
             console.log('✅ Database models synced.');
 
             try {
