@@ -101,6 +101,10 @@ const Issue = sequelize.define('Issue', {
     type: DataTypes.DATEONLY,
     allowNull: true
   },
+  manufacturing_date: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
+  },
   warehouse_entry_date: {
     type: DataTypes.DATEONLY,
     allowNull: true

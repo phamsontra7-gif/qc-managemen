@@ -303,6 +303,7 @@ function App() {
         received_date: new Date().toISOString().split('T')[0],
         detected_date: new Date().toISOString().split('T')[0],
         image_url: '',
+        manufacturing_date: '',
         expiry_date: '',
         warehouse_entry_date: ''
     });
@@ -527,6 +528,7 @@ function App() {
                     received_date: new Date().toISOString().split('T')[0],
                     detected_date: new Date().toISOString().split('T')[0],
                     image_url: '',
+                    manufacturing_date: '',
                     expiry_date: '',
                     warehouse_entry_date: ''
                 });
@@ -823,6 +825,7 @@ function App() {
                                                 received_date: new Date().toISOString().split('T')[0],
                                                 detected_date: new Date().toISOString().split('T')[0],
                                                 image_url: '',
+                                                manufacturing_date: '',
                                                 expiry_date: '',
                                                 warehouse_entry_date: ''
                                             });
@@ -1098,8 +1101,25 @@ function App() {
                                     </div>
                                 </div>
 
-                                {/* Hạn sử dụng & Ngày nhập kho */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Ngày sản xuất, Hạn sử dụng & Ngày nhập kho */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="space-y-2 relative">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Ngày sản xuất / Mfg Date</label>
+                                        <div className="relative group">
+                                            <input
+                                                name="manufacturing_date"
+                                                type="date"
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                                value={formData.manufacturing_date}
+                                                onChange={handleInputChange}
+                                                onClick={(e) => { try { if (e.target.showPicker) e.target.showPicker(); } catch (err) {} }}
+                                            />
+                                            <div className="flex items-center justify-between w-full px-6 py-4 rounded-3xl border-2 border-slate-100 group-hover:border-blue-400 bg-slate-50 font-black text-slate-800 transition-colors pointer-events-none text-base">
+                                                <span className={formData.manufacturing_date ? 'text-slate-800' : 'text-slate-300'}>{formData.manufacturing_date ? formatDate(formData.manufacturing_date) : 'DD/MM/YYYY'}</span>
+                                                <Calendar size={18} className="text-blue-400" />
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div className="space-y-2 relative">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Hạn sử dụng / Expiry Date</label>
                                         <div className="relative group">

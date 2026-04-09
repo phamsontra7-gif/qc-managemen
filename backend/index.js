@@ -924,6 +924,7 @@ app.get('/api/export/excel', authenticate, async (req, res) => {
             'Mô tả lỗi / Defect Description': i.defect_description || '',
             'Số lượng / Quantity': i.quantity ? Number(i.quantity) : 0,
             'Đơn vị / Unit': i.unit || 'kg',
+            'Ngày sản xuất / Manufacturing Date': i.manufacturing_date || '',
             'Ngày nhập kho / Warehouse Entry Date': i.warehouse_entry_date || '',
             'Ngày phát hiện / Detected Date': i.detected_date || '',
             'Hạn sử dụng / Expiry Date': i.expiry_date || '',
