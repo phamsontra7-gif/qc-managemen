@@ -98,6 +98,37 @@ const Notification = sequelize.define('Notification', {
   created_at: { type: DataTypes.DATE, defaultValue: Sequelize.NOW }
 }, { tableName: 'notifications', timestamps: false });
 
+// Tracks every create/update action on an issue (who did it, what changed)
+const IssueHistory = sequelize.define('IssueHistory', {
+  issue_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  user_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true  // null = system action (e.g. cron)
+  },
+  user_name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'System'
+  },
+  // Action type: 'CREATED' | 'UPDATED' | 'STATUS_CHANGED' | 'AUTO_PENDING'
+  action: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  // JSON string recording what fields changed: { fieldName: { from, to } }
+  changes: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: Sequelize.NOW
+  }
+}, { tableName: 'issue_history', timestamps: false });
+
 const User = sequelize.define('User', {
   username: {
     type: DataTypes.STRING,
@@ -131,11 +162,15 @@ Issue.belongsTo(Year, { foreignKey: 'year_id' });
 Issue.hasMany(Notification, { foreignKey: 'issue_id' });
 Notification.belongsTo(Issue, { foreignKey: 'issue_id' });
 
+Issue.hasMany(IssueHistory, { foreignKey: 'issue_id' });
+IssueHistory.belongsTo(Issue, { foreignKey: 'issue_id' });
+
 module.exports = {
   sequelize,
   Year,
   MaterialCategory,
   Issue,
   Notification,
+  IssueHistory,
   User
 };

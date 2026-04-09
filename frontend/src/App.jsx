@@ -271,6 +271,8 @@ function App() {
     const [notificationHistory, setNotificationHistory] = useState([]);
     const [showNotifDropdown, setShowNotifDropdown] = useState(false);
     const [showExcelImport, setShowExcelImport] = useState(false);
+    const [issueHistory, setIssueHistory] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
     const [user, setUser] = useState(() => {
         try {
             const savedUser = localStorage.getItem('user');
@@ -368,6 +370,15 @@ function App() {
         }
     }, [selectedYear, selectedCategory, user]);
 
+    // Fetch history when a detail modal opens
+    useEffect(() => {
+        if (selectedIssue) {
+            fetchIssueHistory(selectedIssue.id);
+        } else {
+            setIssueHistory([]);
+        }
+    }, [selectedIssue]);
+
     // Socket Setup
     useEffect(() => {
         let socket;
@@ -375,7 +386,8 @@ function App() {
             socket = io(API_BASE_URL);
 
             socket.on('issue_created', (newIssue) => {
-                const msg = `Báo cáo mới được tạo: ${newIssue.issue_code || newIssue.product_name}`;
+                const creator = newIssue._updatedBy?.name || newIssue._updatedBy?.username || 'Someone';
+                const msg = `${creator} created new report: ${newIssue.issue_code || newIssue.product_name}`;
                 showNotification(msg, 'info');
                 setNotificationHistory(prev => [{ id: Date.now(), message: msg, type: 'info', issue: newIssue, read: false }, ...prev]);
 
@@ -387,7 +399,8 @@ function App() {
             });
 
             socket.on('issue_updated', (updatedIssue) => {
-                const msg = `Sự cố ${updatedIssue.issue_code || updatedIssue.product_name} vừa được cập nhật`;
+                const updater = updatedIssue._updatedBy?.name || updatedIssue._updatedBy?.username || 'Someone';
+                const msg = `${updater} updated report: ${updatedIssue.issue_code || updatedIssue.product_name}`;
                 showNotification(msg, 'success');
                 setNotificationHistory(prev => [{ id: Date.now(), message: msg, type: 'success', issue: updatedIssue, read: false }, ...prev]);
 
@@ -558,6 +571,23 @@ function App() {
             alert(`Lỗi kết nối: ${error.message}`);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchIssueHistory = async (issueId) => {
+        setHistoryLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/issues/${issueId}/history`, {
+                headers: getAuthHeader()
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setIssueHistory(data);
+            }
+        } catch (err) {
+            console.error('Error fetching issue history:', err);
+        } finally {
+            setHistoryLoading(false);
         }
     };
 
@@ -1194,7 +1224,7 @@ function App() {
             )}
             {/* Detail Modal */}
             {selectedIssue && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6 overflow-y-auto">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6 overflow-y-auto" onClick={(e) => { if (e.target === e.currentTarget) setSelectedIssue(null); }}>
                     <div className="bg-white w-full max-w-3xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/20 my-auto">
                         <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 backdrop-blur-sm">
                             <div className="flex items-center gap-4">
@@ -1202,7 +1232,7 @@ function App() {
                                     <ShieldCheck size={24} strokeWidth={3} />
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Chi tiết sự cố / Issue Details</h2>
+                                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Issue Details</h2>
                                     <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mt-1">{selectedIssue.issue_code}</p>
                                 </div>
                             </div>
@@ -1211,8 +1241,8 @@ function App() {
                             </button>
                         </div>
 
-                        <div className="p-10 space-y-10 max-h-[75vh] overflow-y-auto custom-scrollbar-minimal">
-                            {/* Header Info */}
+                         <div className="p-10 space-y-10 max-h-[75vh] overflow-y-auto custom-scrollbar-minimal">
+                             {/* Header Info */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                                 <div className="space-y-1">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Loại / Type</p>
@@ -1303,7 +1333,68 @@ function App() {
                                         </div>
                                     </div>
                                 )}
-                            </div>
+                             {/* Update History Timeline */}
+                                <div className="space-y-3">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                                        <Clock size={14} /> Update History
+                                    </p>
+                                    <div className="rounded-3xl border-2 border-slate-100 overflow-hidden">
+                                        {historyLoading ? (
+                                            <div className="p-6 text-center text-slate-400 text-xs font-bold">Loading history...</div>
+                                        ) : issueHistory.length === 0 ? (
+                                            <div className="p-6 text-center text-slate-300 text-xs font-bold uppercase tracking-wider">No history recorded yet</div>
+                                        ) : (
+                                            <div className="divide-y divide-slate-50">
+                                                {issueHistory.map((entry, idx) => {
+                                                    const actionColors = {
+                                                        CREATED: 'bg-blue-100 text-blue-700',
+                                                        UPDATED: 'bg-slate-100 text-slate-600',
+                                                        STATUS_CHANGED: 'bg-amber-100 text-amber-700',
+                                                        AUTO_PENDING: 'bg-orange-100 text-orange-700'
+                                                    };
+                                                    const actionLabels = {
+                                                        CREATED: 'Created',
+                                                        UPDATED: 'Updated',
+                                                        STATUS_CHANGED: 'Status Changed',
+                                                        AUTO_PENDING: 'Auto → Pending'
+                                                    };
+                                                    let changes = null;
+                                                    try { changes = entry.changes ? JSON.parse(entry.changes) : null; } catch(e) {}
+                                                    const ts = new Date(entry.created_at);
+                                                    const tsStr = ts.toLocaleString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+                                                    return (
+                                                        <div key={entry.id || idx} className="flex items-start gap-4 p-4 hover:bg-slate-50 transition-colors">
+                                                            <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-slate-300 ring-2 ring-slate-100"></div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${actionColors[entry.action] || 'bg-slate-100 text-slate-600'}`}>
+                                                                        {actionLabels[entry.action] || entry.action}
+                                                                    </span>
+                                                                    <span className="text-xs font-bold text-slate-700">{entry.user_name}</span>
+                                                                </div>
+                                                                {changes && (
+                                                                    <div className="text-[10px] text-slate-400 font-medium space-y-0.5">
+                                                                        {Object.entries(changes).map(([field, val]) => (
+                                                                            <div key={field}>
+                                                                                <span className="font-bold text-slate-500 capitalize">{field.replace(/_/g, ' ')}</span>:
+                                                                                {' '}
+                                                                                <span className="line-through text-rose-400">{String(val.from ?? '—')}</span>
+                                                                                {' → '}
+                                                                                <span className="text-emerald-600 font-bold">{String(val.to ?? '—')}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                <p className="text-[10px] text-slate-300 font-medium mt-1">{tsStr}</p>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                             </div>
                         </div>
 
                         <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">

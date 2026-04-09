@@ -3,7 +3,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Sequelize, DataTypes, Op } = require('sequelize');
-const { sequelize, Issue, MaterialCategory, Year, User } = require('./db');
+const { sequelize, Issue, MaterialCategory, Year, User, IssueHistory } = require('./db');
 const multer = require('multer');
 const path = require('path');
 const http = require('http');
@@ -335,8 +335,21 @@ app.post('/api/issues', authenticate, async (req, res) => {
             ]
         });
 
-        // Emit socket event
-        req.io.emit('issue_created', newIssue);
+        // Emit socket event — include creator info so frontend can show attributed notification
+        req.io.emit('issue_created', { ...newIssue.toJSON(), _updatedBy: { name: req.user.name || req.user.username, username: req.user.username } });
+
+        // Record CREATED history
+        try {
+            await IssueHistory.create({
+                issue_id: issue.id,
+                user_id: req.user.id,
+                user_name: req.user.name || req.user.username,
+                action: 'CREATED',
+                changes: JSON.stringify({ issue_code: newIssue.issue_code, product_name: newIssue.product_name })
+            });
+        } catch (histErr) {
+            console.error('Failed to write CREATED history:', histErr.message);
+        }
 
         console.log('Success! Saved with ID:', issue.id);
         res.status(201).json(newIssue);
@@ -366,6 +379,10 @@ app.put('/api/issues/:id', authenticate, upload.single('image'), async (req, res
             return res.status(404).json({ error: 'Sự cố không tồn tại' });
         }
 
+        // Snapshot before state for history diff
+        const beforeStatus = issue.status;
+        const beforeSnapshot = issue.toJSON();
+
         const bodyContent = { ...req.body };
         Object.keys(bodyContent).forEach(key => {
             if (typeof bodyContent[key] === 'string') {
@@ -394,8 +411,36 @@ app.put('/api/issues/:id', authenticate, upload.single('image'), async (req, res
             ]
         });
 
-        // Emit socket event
-        req.io.emit('issue_updated', updatedIssue);
+        // Build diff of changed fields for history record
+        const trackedFields = ['status', 'resolution_direction', 'product_name', 'defect_description', 'quantity', 'unit', 'lot_no', 'detected_date', 'received_date', 'expiry_date', 'warehouse_entry_date'];
+        const changesObj = {};
+        trackedFields.forEach(field => {
+            const before = beforeSnapshot[field];
+            const after = updatedIssue[field];
+            if (String(before ?? '') !== String(after ?? '')) {
+                changesObj[field] = { from: before, to: after };
+            }
+        });
+
+        // Determine action type
+        const afterStatus = updatedIssue.status;
+        const actionType = afterStatus !== beforeStatus ? 'STATUS_CHANGED' : 'UPDATED';
+
+        // Record update history
+        try {
+            await IssueHistory.create({
+                issue_id: parseInt(id),
+                user_id: req.user.id,
+                user_name: req.user.name || req.user.username,
+                action: actionType,
+                changes: Object.keys(changesObj).length > 0 ? JSON.stringify(changesObj) : null
+            });
+        } catch (histErr) {
+            console.error('Failed to write UPDATE history:', histErr.message);
+        }
+
+        // Emit socket event — include updater info so frontend can show attributed notification
+        req.io.emit('issue_updated', { ...updatedIssue.toJSON(), _updatedBy: { name: req.user.name || req.user.username, username: req.user.username } });
 
         res.json(updatedIssue);
     } catch (error) {
@@ -432,6 +477,20 @@ app.get('/api/test/run-cron', async (req, res) => {
         console.log('🔧 Manual cron trigger via /api/test/run-cron');
         await cronJobs.checkOverdueIssues();
         res.json({ message: 'Cron job executed successfully. Check server logs for details.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// --- GET Issue History ---
+app.get('/api/issues/:id/history', authenticate, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const history = await IssueHistory.findAll({
+            where: { issue_id: id },
+            order: [['created_at', 'DESC']]
+        });
+        res.json(history);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

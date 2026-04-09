@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const { Issue, Notification, MaterialCategory, Year } = require('./db');
+const { Issue, Notification, MaterialCategory, Year, IssueHistory } = require('./db');
 const { Op } = require('sequelize');
 
 // Mock function for Push Notification (e.g. FCM)
@@ -47,9 +47,22 @@ const checkOverdueIssues = async (io) => {
             });
 
             // Create notification record
-            const message = `⚠️ Issue "${issue.product_name || issue.issue_code}" đã tự động chuyển sang PENDING do không có cập nhật trong 7 ngày.`;
+            const message = `⚠️ Issue "${issue.product_name || issue.issue_code}" has been automatically moved to PENDING — no update in 7 days.`;
             await createNotification(issue.id, message);
             console.log(`✅ Issue ID ${issue.id} auto-changed: NEW → PENDING`);
+
+            // Record AUTO_PENDING history
+            try {
+                await IssueHistory.create({
+                    issue_id: issue.id,
+                    user_id: null,
+                    user_name: 'System',
+                    action: 'AUTO_PENDING',
+                    changes: JSON.stringify({ status: { from: 'NEW', to: 'PENDING' } })
+                });
+            } catch (histErr) {
+                console.error('Failed to write AUTO_PENDING history:', histErr.message);
+            }
 
             // Emit socket event to update frontend in realtime (if io is available)
             if (io) {
