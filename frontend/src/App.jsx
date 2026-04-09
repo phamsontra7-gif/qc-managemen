@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import IssueList from './components/IssueList';
-import { Plus, X, AlertCircle, CheckCircle2, Clock, Calendar, ShieldCheck, Layers, ChevronRight, ChevronDown, LogOut, User as UserIcon, Users as UsersIcon, LayoutGrid, Camera, Image as ImageIcon, Bell, FileSpreadsheet } from 'lucide-react';
+import { Plus, X, AlertCircle, CheckCircle2, Clock, Calendar, ShieldCheck, Layers, ChevronRight, ChevronDown, LogOut, User as UserIcon, Users as UsersIcon, LayoutGrid, Camera, Image as ImageIcon, Bell, FileSpreadsheet, Download } from 'lucide-react';
 import Login from './components/Login';
 import UserManager from './components/UserManager';
 import ExcelImport from './components/ExcelImport';
@@ -273,6 +273,7 @@ function App() {
     const [showExcelImport, setShowExcelImport] = useState(false);
     const [issueHistory, setIssueHistory] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [exporting, setExporting] = useState(false);
     const [user, setUser] = useState(() => {
         try {
             const savedUser = localStorage.getItem('user');
@@ -591,6 +592,31 @@ function App() {
         }
     };
 
+    const handleExport = async () => {
+        setExporting(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/api/export/excel`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Export thất bại');
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const today = new Date().toISOString().split('T')[0];
+            a.download = `QC_Backup_${today}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            alert('Lỗi xuất Excel: ' + err.message);
+        } finally {
+            setExporting(false);
+        }
+    };
+
     if (!user) {
         return <Login onLogin={setUser} />;
     }
@@ -763,6 +789,19 @@ function App() {
                                         <span className="flex flex-col items-start leading-tight">
                                             <span>Import Excel</span>
                                             <span className="text-[10px] font-bold opacity-75 tracking-widest uppercase">Báo cáo tháng</span>
+                                        </span>
+                                    </button>
+
+                                    {/* Export Excel backup button */}
+                                    <button
+                                        onClick={handleExport}
+                                        disabled={exporting}
+                                        className="group bg-slate-100 text-slate-700 border-2 border-slate-200 px-6 py-4 rounded-2xl font-black hover:bg-white hover:border-blue-400 hover:text-blue-600 transition-all duration-300 flex items-center gap-2.5 transform hover:-translate-y-1 active:scale-95 disabled:opacity-50"
+                                    >
+                                        <Download size={20} strokeWidth={2.5} className={exporting ? 'animate-bounce' : ''} />
+                                        <span className="flex flex-col items-start leading-tight">
+                                            <span>{exporting ? 'Đang xuất...' : 'Xuất Excel'}</span>
+                                            <span className="text-[10px] font-bold opacity-75 tracking-widest uppercase">Export Backup</span>
                                         </span>
                                     </button>
 

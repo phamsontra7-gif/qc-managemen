@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import StatusBadge from './StatusBadge';
-import { Camera, Search, X } from 'lucide-react';
+import { Camera, Search, X, Download } from 'lucide-react';
+import API_BASE_URL from '../config';
 
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -25,7 +26,7 @@ const IssueList = ({ issues, onSelectIssue }) => {
     return (
         <div className="space-y-4">
             {/* Search Bar */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 flex-wrap">
                 <div className="relative flex-1 max-w-md">
                     <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     <input
