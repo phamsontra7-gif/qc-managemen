@@ -861,6 +861,62 @@ app.post('/api/import/excel', authenticate, upload.single('file'), async (req, r
 });
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── EXPORT EXCEL ENDPOINT ───────────────────────────────────────────────────
+// GET /api/export/excel
+// Exports all issues as a downloadable .xlsx file (for backup / data recovery)
+app.get('/api/export/excel', authenticate, async (req, res) => {
+    try {
+        const issues = await Issue.findAll({
+            include: [
+                { model: MaterialCategory, include: [Year] },
+                { model: Year }
+            ],
+            order: [['detected_date', 'DESC']]
+        });
+
+        // Map issues to flat rows for Excel
+        const rows = issues.map(i => ({
+            'Mã sự cố / Issue Code': i.issue_code || '',
+            'Loại sản phẩm / Product Type': i.product_type || '',
+            'Tên sản phẩm / Product Name': i.product_name || '',
+            'Số lô / Lot No': i.lot_no || '',
+            'Mô tả lỗi / Defect Description': i.defect_description || '',
+            'Số lượng / Quantity': i.quantity ? Number(i.quantity) : 0,
+            'Đơn vị / Unit': i.unit || 'kg',
+            'Ngày nhập kho / Warehouse Entry Date': i.warehouse_entry_date || '',
+            'Ngày phát hiện / Detected Date': i.detected_date || '',
+            'Hạn sử dụng / Expiry Date': i.expiry_date || '',
+            'Hướng xử lý / Resolution': i.resolution_direction || '',
+            'Trạng thái / Status': i.status || '',
+            'Link ảnh / Image URL': i.image_url || '',
+            'Năm / Year': i.Year ? i.Year.year : '',
+            'Danh mục / Category': i.MaterialCategory ? i.MaterialCategory.name : '',
+            'Ngày tạo / Created At': i.created_at ? new Date(i.created_at).toISOString().split('T')[0] : '',
+            'Cập nhật lần cuối / Last Updated': i.last_updated ? new Date(i.last_updated).toISOString().split('T')[0] : '',
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+
+        // Auto column width based on header length
+        const colWidths = Object.keys(rows[0] || {}).map(k => ({ wch: Math.max(k.length, 18) }));
+        ws['!cols'] = colWidths;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Issues');
+
+        const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+        const today = new Date().toISOString().split('T')[0]; // e.g. 2026-04-09
+        res.setHeader('Content-Disposition', `attachment; filename="QC_Backup_${today}.xlsx"`);
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.send(buf);
+    } catch (err) {
+        console.error('[EXPORT EXCEL ERROR]', err);
+        res.status(500).json({ error: 'Không thể xuất file Excel: ' + err.message });
+    }
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 server.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 Server is running on port ${PORT}`);
 
@@ -869,8 +925,8 @@ server.listen(PORT, '0.0.0.0', async () => {
         await sequelize.authenticate();
         console.log('✅ Database connected.');
 
-        // Sync in background and seed if needed
-        sequelize.sync({ alter: true }).then(async () => {
+        // Sync models (simple sync is faster for production)
+        sequelize.sync().then(async () => {
             console.log('✅ Database models synced.');
 
             try {
