@@ -1,14 +1,29 @@
 const { Sequelize, DataTypes } = require('sequelize');
 require('dotenv').config();
 
+// Strip SSL query params from URL to avoid conflicts with dialectOptions below
+const buildDatabaseUrl = (url) => {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    // Remove sslmode param — SSL is handled via dialectOptions
+    u.searchParams.delete('sslmode');
+    u.searchParams.delete('pgbouncer');
+    return u.toString();
+  } catch (e) {
+    return url;
+  }
+};
+
 const sequelize = process.env.DATABASE_URL
-  ? new Sequelize(process.env.DATABASE_URL, {
+  ? new Sequelize(buildDatabaseUrl(process.env.DATABASE_URL), {
     dialect: 'postgres',
     logging: false,
     dialectOptions: {
       ssl: {
         require: true,
-        rejectUnauthorized: false
+        rejectUnauthorized: false, // Allow self-signed/Supabase pooler certs
+        ca: undefined              // No custom CA needed
       }
     }
   })
