@@ -261,8 +261,8 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [selectedIssue, setSelectedIssue] = useState(null);
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [imagePreview, setImagePreview] = useState(null);
+    const [selectedFiles, setSelectedFiles] = useState([]);
+    const [imagePreviewList, setImagePreviewList] = useState([]);
     const [selectedYear, setSelectedYear] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedStatus, setSelectedStatus] = useState(null);
@@ -463,28 +463,54 @@ function App() {
         }
         setLoading(true);
         try {
-            let currentImageUrl = formData.image_url;
-
-            // If a file is selected, upload it first
-            if (selectedFile) {
-                const uploadData = new FormData();
-                uploadData.append('image', selectedFile);
-
-                const uploadResponse = await fetch(`${API_BASE_URL}/api/upload`, {
-                    method: 'POST',
-                    headers: {
-                        ...getAuthHeader()
-                    },
-                    body: uploadData
-                });
-
-                if (uploadResponse.ok) {
-                    const uploadResult = await uploadResponse.json();
-                    currentImageUrl = uploadResult.imageUrl;
-                } else {
-                    console.error('Failed to upload image');
+            // ── Collect all image URLs ──────────────────────────────────────
+            // 1. Start with already-saved URLs (from formData.image_url)
+            const allImageUrls = [];
+            if (formData.image_url) {
+                try {
+                    const parsed = JSON.parse(formData.image_url);
+                    if (Array.isArray(parsed)) {
+                        allImageUrls.push(...parsed);
+                    } else {
+                        allImageUrls.push(formData.image_url);
+                    }
+                } catch {
+                    allImageUrls.push(formData.image_url);
                 }
             }
+
+            // 2. Upload every newly selected file and collect their URLs
+            if (selectedFiles.length > 0) {
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const file = selectedFiles[i];
+                    const uploadData = new FormData();
+                    uploadData.append('image', file);
+                    try {
+                        const uploadResponse = await fetch(`${API_BASE_URL}/api/upload`, {
+                            method: 'POST',
+                            headers: { ...getAuthHeader() },
+                            body: uploadData
+                        });
+                        if (uploadResponse.ok) {
+                            const uploadResult = await uploadResponse.json();
+                            if (uploadResult.imageUrl) {
+                                allImageUrls.push(uploadResult.imageUrl);
+                            }
+                        } else {
+                            console.error(`Ảnh ${i + 1} upload thất bại`);
+                        }
+                    } catch (err) {
+                        console.error(`Upload error ảnh ${i + 1}:`, err);
+                    }
+                }
+            }
+
+            // 3. Build final image_url string
+            const currentImageUrl = allImageUrls.length > 1
+                ? JSON.stringify(allImageUrls)
+                : allImageUrls.length === 1
+                    ? allImageUrls[0]
+                    : '';
 
             const dataToSend = {
                 ...formData,
@@ -532,8 +558,8 @@ function App() {
                     expiry_date: '',
                     warehouse_entry_date: ''
                 });
-                setSelectedFile(null);
-                setImagePreview(null);
+                setSelectedFiles([]);
+                setImagePreviewList([]);
                 fetchData(selectedYear, selectedCategory);
                 setLoading(false);
             } else {
@@ -829,6 +855,8 @@ function App() {
                                                 expiry_date: '',
                                                 warehouse_entry_date: ''
                                             });
+                                            setSelectedFiles([]);
+                                            setImagePreviewList([]);
                                             setShowModal(true);
                                         }}
                                         className="group bg-blue-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-blue-700 shadow-2xl shadow-blue-200 transition-all duration-300 flex items-center gap-3 transform hover:-translate-y-1 active:scale-95"
@@ -943,7 +971,7 @@ function App() {
                                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Chi tiết sự cố / Issue Details</p>
                                     </div>
                                 </div>
-                                <button type="button" onClick={() => setShowModal(false)} className="p-3 hover:bg-white hover:shadow-md rounded-full transition-all text-slate-400 hover:text-slate-900">
+                                <button type="button" onClick={() => { setShowModal(false); setSelectedFiles([]); setImagePreviewList([]); }} className="p-3 hover:bg-white hover:shadow-md rounded-full transition-all text-slate-400 hover:text-slate-900">
                                     <X size={24} strokeWidth={2.5} />
                                 </button>
                             </div>
@@ -1168,54 +1196,99 @@ function App() {
                                     ></textarea>
                                 </div>
 
-                                {/* Đính kèm ảnh */}
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Đính kèm ảnh / Attached Image</label>
-                                    <div className="flex items-center gap-6">
+                                {/* Đính kèm ảnh - hỗ trợ nhiều ảnh */}
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Đính kèm ảnh / Attached Images</label>
+
+                                    {/* Ảnh đã lưu trước đó */}
+                                    {formData.image_url && (() => {
+                                        let savedUrls = [];
+                                        try {
+                                            const parsed = JSON.parse(formData.image_url);
+                                            savedUrls = Array.isArray(parsed) ? parsed : [formData.image_url];
+                                        } catch { savedUrls = [formData.image_url]; }
+                                        return savedUrls.length > 0 ? (
+                                            <div className="flex flex-wrap gap-3">
+                                                {savedUrls.map((url, idx) => (
+                                                    <div key={idx} className="relative group">
+                                                        <img
+                                                            src={getImageSrc(url)}
+                                                            alt={`Ảnh ${idx + 1}`}
+                                                            className="w-24 h-24 rounded-2xl object-cover border-2 border-blue-400 shadow-md"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const newUrls = savedUrls.filter((_, i) => i !== idx);
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    image_url: newUrls.length > 1 ? JSON.stringify(newUrls) : newUrls.length === 1 ? newUrls[0] : ''
+                                                                }));
+                                                            }}
+                                                            className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
+                                                        >
+                                                            <X size={12} strokeWidth={3} />
+                                                        </button>
+                                                        <span className="absolute bottom-1 left-1 bg-black/50 text-white text-[9px] px-1.5 rounded-full font-bold">{idx + 1}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null;
+                                    })()}
+
+                                    {/* Preview ảnh mới chọn */}
+                                    {imagePreviewList.length > 0 && (
+                                        <div className="flex flex-wrap gap-3">
+                                            {imagePreviewList.map((preview, idx) => (
+                                                <div key={idx} className="relative group">
+                                                    <img
+                                                        src={preview}
+                                                        alt={`Ảnh mới ${idx + 1}`}
+                                                        className="w-24 h-24 rounded-2xl object-cover border-2 border-emerald-400 shadow-md"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
+                                                            setImagePreviewList(prev => prev.filter((_, i) => i !== idx));
+                                                        }}
+                                                        className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
+                                                    >
+                                                        <X size={12} strokeWidth={3} />
+                                                    </button>
+                                                    <span className="absolute bottom-1 left-1 bg-emerald-500/80 text-white text-[9px] px-1.5 rounded-full font-bold">Mới</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Nút chọn ảnh */}
+                                    <div className="flex items-center gap-4">
                                         <label className="cursor-pointer group">
                                             <input
                                                 type="file"
                                                 className="hidden"
                                                 accept="image/*"
+                                                multiple
                                                 onChange={(e) => {
-                                                    const file = e.target.files[0];
-                                                    if (file) {
-                                                        setSelectedFile(file);
-                                                        setImagePreview(URL.createObjectURL(file));
+                                                    const files = Array.from(e.target.files);
+                                                    if (files.length > 0) {
+                                                        setSelectedFiles(prev => [...prev, ...files]);
+                                                        const previews = files.map(f => URL.createObjectURL(f));
+                                                        setImagePreviewList(prev => [...prev, ...previews]);
                                                     }
+                                                    e.target.value = '';
                                                 }}
                                             />
-                                            <div className="w-32 h-32 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-400 group-hover:border-blue-500 group-hover:text-blue-500 transition-all bg-slate-50">
-                                                <Camera size={28} />
-                                                <span className="text-[10px] font-black uppercase">Chọn ảnh</span>
+                                            <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-1.5 text-slate-400 group-hover:border-blue-500 group-hover:text-blue-500 transition-all bg-slate-50">
+                                                <Camera size={24} />
+                                                <span className="text-[9px] font-black uppercase text-center leading-tight">Thêm ảnh<br/>+ Add</span>
                                             </div>
                                         </label>
-
-                                        {(imagePreview || formData.image_url) && (
-                                            <div className="relative group">
-                                                <img
-                                                    src={imagePreview || getImageSrc(formData.image_url)}
-                                                    alt="Preview"
-                                                    className="w-32 h-32 rounded-[2rem] object-cover border-2 border-blue-500 shadow-lg shadow-blue-100"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setSelectedFile(null);
-                                                        setImagePreview(null);
-                                                        setFormData(prev => ({ ...prev, image_url: '' }));
-                                                    }}
-                                                    className="absolute -top-2 -right-2 bg-rose-500 text-white p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all"
-                                                >
-                                                    <X size={14} strokeWidth={3} />
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {!imagePreview && (
-                                            <div className="flex-1 p-6 rounded-[2rem] bg-slate-100/50 border border-slate-200/50">
+                                        {imagePreviewList.length === 0 && !formData.image_url && (
+                                            <div className="flex-1 p-5 rounded-2xl bg-slate-100/50 border border-slate-200/50">
                                                 <p className="text-xs text-slate-400 font-bold italic leading-relaxed">
-                                                    * Hình ảnh giúp việc đối soát và xử lý sự cố nhanh chóng hơn. Hỗ trợ định dạng: JPG, PNG, WEBP.
+                                                    * Chọn nhiều ảnh cùng lúc. Hỗ trợ: JPG, PNG, WEBP.
                                                 </p>
                                             </div>
                                         )}
@@ -1377,21 +1450,44 @@ function App() {
                                                     )}
                                                 </div>
 
-                                                {/* Image Display in Detail Modal */}
-                                                {selectedIssue.image_url && (
-                                    <div className="space-y-3">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
-                                            <ImageIcon size={14} /> Ảnh đính kèm / Attached Image
-                                        </p>
-                                        <div className="rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl">
-                                            <img
-                                                src={getImageSrc(selectedIssue.image_url)}
-                                                alt="Issue evidence"
-                                                className="w-full h-auto object-cover hover:scale-105 transition-transform duration-700 cursor-zoom-in"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
+                                                {/* Image Gallery in Detail Modal */}
+                                                {selectedIssue.image_url && (() => {
+                                                    let urls = [];
+                                                    try {
+                                                        const parsed = JSON.parse(selectedIssue.image_url);
+                                                        urls = Array.isArray(parsed) ? parsed : [selectedIssue.image_url];
+                                                    } catch { urls = [selectedIssue.image_url]; }
+                                                    return (
+                                                        <div className="space-y-3">
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
+                                                                <ImageIcon size={14} /> Ảnh đính kèm / Attached Images ({urls.length})
+                                                            </p>
+                                                            {urls.length === 1 ? (
+                                                                <div className="rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl">
+                                                                    <img
+                                                                        src={getImageSrc(urls[0])}
+                                                                        alt="Issue evidence"
+                                                                        className="w-full h-auto object-cover hover:scale-105 transition-transform duration-700 cursor-zoom-in"
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="grid grid-cols-2 gap-3">
+                                                                    {urls.map((url, idx) => (
+                                                                        <div key={idx} className="relative rounded-3xl overflow-hidden border-2 border-white shadow-lg group cursor-zoom-in">
+                                                                            <img
+                                                                                src={getImageSrc(url)}
+                                                                                alt={`Evidence ${idx + 1}`}
+                                                                                className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+                                                                                onClick={() => window.open(getImageSrc(url), '_blank')}
+                                                                            />
+                                                                            <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{idx + 1}/{urls.length}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                              {/* Update History Timeline */}
                                 <div className="space-y-3">
                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 flex items-center gap-2">
@@ -1474,6 +1570,8 @@ function App() {
                                         detected_date: selectedIssue.detected_date ? selectedIssue.detected_date.split('T')[0] : '',
                                         received_date: selectedIssue.received_date ? selectedIssue.received_date.split('T')[0] : ''
                                     });
+                                    setSelectedFiles([]);
+                                    setImagePreviewList([]);
                                     setSelectedIssue(null);
                                     setShowModal(true);
                                 }}
