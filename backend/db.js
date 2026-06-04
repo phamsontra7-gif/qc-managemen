@@ -60,8 +60,8 @@ const Issue = sequelize.define('Issue', {
     type: DataTypes.STRING,
     allowNull: true
   },
-  product_name: DataTypes.STRING,
-  lot_no: DataTypes.STRING,
+  product_name: DataTypes.TEXT,
+  lot_no: DataTypes.TEXT,
   defect_description: DataTypes.TEXT,
   quantity: DataTypes.DECIMAL,
   unit: {
@@ -94,7 +94,7 @@ const Issue = sequelize.define('Issue', {
     allowNull: true
   },
   image_url: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: true
   },
   expiry_date: {
