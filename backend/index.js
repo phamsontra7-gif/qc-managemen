@@ -972,16 +972,17 @@ server.listen(PORT, '0.0.0.0', async () => {
             console.log('✅ Database models synced.');
 
             try {
-                const adminUser = await User.findOne({ where: { username: 'admin' } });
-                if (!adminUser) {
-                    console.log('No Admin found, creating default admin account...');
-                    const adminPassword = await bcrypt.hash('admin123', 10);
-                    await User.create({
-                        username: 'admin',
-                        password: adminPassword,
-                        full_name: 'Hệ thống Quản trị',
-                        role: 'ADMIN'
-                    });
+                // Seed all users with preserved password hashes
+                const seedUsers = [
+                    { username: 'admin', password: '$2b$10$R7pZSxVrEjg7FGzpzc3W4uky57HMAJODddmctyg05CirZqHhAhtkm', full_name: 'Hệ thống Quản trị', role: 'ADMIN' },
+                    { username: 'Thanhthanh', password: '$2b$10$a20yno5ME5wT.z1hNFmnV.ZIhg6q5/6qIGBwG.S1QWt6hfY6RBXWi', full_name: 'Nguyễn Thanh', role: 'USER' },
+                ];
+                for (const u of seedUsers) {
+                    const exists = await User.findOne({ where: { username: u.username } });
+                    if (!exists) {
+                        await User.create(u);
+                        console.log(`✅ Seeded user: ${u.username}`);
+                    }
                 }
 
                 // Seed years if not present

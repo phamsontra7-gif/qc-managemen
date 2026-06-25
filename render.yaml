@@ -13,8 +13,16 @@ services:
         value: super_secret_qc_key_2026_render
       - key: JWT_EXPIRES_IN
         value: 24h
-      # DATABASE_URL is set manually in Render Environment Variables (Supabase)
-      # Do NOT add fromDatabase here — the old Render DB has been deleted
+      - key: DATABASE_URL
+        fromDatabase:
+          name: qc-management-db
+          property: connectionString
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dtbluza7m
+      - key: CLOUDINARY_API_KEY
+        value: 516494494432624
+      - key: CLOUDINARY_API_SECRET
+        value: 9sZ2KBKNhmYAMhfdgtT_XujuGjI
 
   # Frontend React (Static Site)
   - type: web
@@ -30,9 +38,9 @@ services:
           type: web
           property: host
 
-# PostgreSQL Database
-# databases:
-#   - name: qc-management-db  (deleted — migrated to Supabase)
-#     databaseName: qc_db
-#     user: qc_user
-#     plan: free
+# PostgreSQL Database (Render Free Tier)
+databases:
+  - name: qc-management-db
+    databaseName: qc_db
+    user: qc_user
+    plan: free
